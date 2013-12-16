@@ -43,11 +43,11 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     @Override
     public void launch() {
 
-//
-//        //do not do anything on launch
-//        newScript(LAUNCHING).
+
+        newScript(LAUNCHING).
 //                failOnNonZeroResultCode().
-//                execute();
+        body.append("pwd").
+                execute();
     }
 
     @Override
@@ -98,7 +98,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     }
 
     public void loadWorkloadA() {
-        newScript(ImmutableMap.of("usePidFile", true), LAUNCHING).
+        newScript(LAUNCHING).
                 body.append(
                 format(getLoadCmd("workloada"))
         ).execute();
