@@ -36,7 +36,7 @@ import brooklyn.util.CommandLineUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import ycsb.YCSBEntity;
-
+import ycsb.YCSBEntityCluster;
 
 
 public class HighAvailabilityCassandraCluster extends AbstractApplication {
@@ -64,25 +64,28 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
 
     @Override
     public void init() {
-        CassandraCluster cluster = addChild(EntitySpec.create(CassandraCluster.class)
-                .configure(CassandraCluster.CLUSTER_NAME, "Brooklyn")
-                .configure(CassandraCluster.INITIAL_SIZE, getConfig(CASSANDRA_CLUSTER_SIZE))
-                        //See https://github.com/brooklyncentral/brooklyn/issues/973
-                        //.configure(CassandraCluster.AVAILABILITY_ZONE_NAMES, ImmutableList.of("us-east-1b", "us-east-1c", "us-east-1e"))
-                .configure(CassandraCluster.ENDPOINT_SNITCH_NAME, "GossipingPropertyFileSnitch")
-                .configure(CassandraCluster.MEMBER_SPEC, EntitySpec.create(CassandraNode.class)
-                        .policy(PolicySpec.create(ServiceFailureDetector.class))
-                        .policy(PolicySpec.create(ServiceRestarter.class)
-                                .configure(ServiceRestarter.FAILURE_SENSOR_TO_MONITOR, ServiceFailureDetector.ENTITY_FAILED)))
-                .policy(PolicySpec.create(ServiceReplacer.class)
-                        .configure(ServiceReplacer.FAILURE_SENSOR_TO_MONITOR, ServiceRestarter.ENTITY_RESTART_FAILED)));
+//        CassandraCluster cluster = addChild(EntitySpec.create(CassandraCluster.class)
+//                .configure(CassandraCluster.CLUSTER_NAME, "Brooklyn")
+//                .configure(CassandraCluster.INITIAL_SIZE, getConfig(CASSANDRA_CLUSTER_SIZE))
+//                        //See https://github.com/brooklyncentral/brooklyn/issues/973
+//                        //.configure(CassandraCluster.AVAILABILITY_ZONE_NAMES, ImmutableList.of("us-east-1b", "us-east-1c", "us-east-1e"))
+//                .configure(CassandraCluster.ENDPOINT_SNITCH_NAME, "GossipingPropertyFileSnitch")
+//                .configure(CassandraCluster.MEMBER_SPEC, EntitySpec.create(CassandraNode.class)
+//                        .policy(PolicySpec.create(ServiceFailureDetector.class))
+//                        .policy(PolicySpec.create(ServiceRestarter.class)
+//                                .configure(ServiceRestarter.FAILURE_SENSOR_TO_MONITOR, ServiceFailureDetector.ENTITY_FAILED)))
+//                .policy(PolicySpec.create(ServiceReplacer.class)
+//                        .configure(ServiceReplacer.FAILURE_SENSOR_TO_MONITOR, ServiceRestarter.ENTITY_RESTART_FAILED)));
 
 
-        addChild(EntitySpec.create(YCSBEntity.class)
-        .configure(YCSBEntity.MAIN_CLASS,"com.yahoo.ycsb.Client")
-        .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar", "classpath://core-0.1.4.jar", "classpath://workloada","classpath://slf4j-simple-1.7.5.jar"))
-        .configure(YCSBEntity.HOSTNAMES, DependentConfiguration.attributeWhenReady(cluster,CassandraCluster.CASSANDRA_CLUSTER_NODES))
-        .configure(YCSBEntity.INSERT_START,0));
+
+        addChild(EntitySpec.create(YCSBEntityCluster.class)
+                .configure(YCSBEntityCluster.INITIAL_SIZE,4)
+                .configure(YCSBEntityCluster.NO_OF_RECORDS,1000000)
+                .configure(YCSBEntityCluster.MEMBER_SPEC, EntitySpec.create(YCSBEntity.class)
+                .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
+                .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar", "classpath://core-0.1.4.jar", "classpath://workloada", "classpath://slf4j-simple-1.7.5.jar"))));
+                        //.configure(YCSBEntity.HOSTNAMES, DependentConfiguration.attributeWhenReady(cluster, CassandraCluster.CASSANDRA_CLUSTER_NODES))
         //.configure(YCSBEntity.ARGS,ImmutableList.of("-s", "-p recordcount=10000000", "-threads 10")));
     }
 

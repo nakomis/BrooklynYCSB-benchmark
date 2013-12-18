@@ -56,7 +56,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     }
 
     public Integer getInsertStart() {
-        return entity.getConfig(YCSBEntity.INSERT_START);
+        return entity.getAttribute(YCSBEntity.INSERT_START);
     }
 
     public String getHostnames() {

@@ -29,7 +29,7 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     @Override
     public Integer getInsertStart()
     {
-        return getConfig(INSERT_START);
+        return getAttribute(INSERT_START);
     }
 
     @Override
