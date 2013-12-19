@@ -1,33 +1,23 @@
 import brooklyn.config.ConfigKey;
-import brooklyn.entity.Entity;
 import brooklyn.entity.annotation.Effector;
 import brooklyn.entity.basic.AbstractApplication;
 import brooklyn.entity.basic.ConfigKeys;
 import brooklyn.entity.basic.Entities;
 import brooklyn.entity.basic.StartableApplication;
-import brooklyn.entity.effector.Effectors;
 import brooklyn.entity.java.VanillaJavaApp;
 import brooklyn.entity.nosql.cassandra.CassandraCluster;
 import brooklyn.entity.nosql.cassandra.CassandraNode;
 import brooklyn.entity.proxying.EntitySpec;
-import brooklyn.event.SensorEvent;
-import brooklyn.event.SensorEventListener;
 import brooklyn.launcher.BrooklynLauncher;
 import brooklyn.policy.PolicySpec;
 import brooklyn.policy.ha.ServiceFailureDetector;
 import brooklyn.policy.ha.ServiceReplacer;
 import brooklyn.policy.ha.ServiceRestarter;
 import brooklyn.util.CommandLineUtil;
-import brooklyn.util.text.Strings;
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import brooklyn.event.basic.DependentConfiguration;
 import com.google.common.collect.Maps;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -39,10 +29,11 @@ public class CassandraClusterWithYCSB extends AbstractApplication {
     public static final ConfigKey<Integer> CASSANDRA_CLUSTER_SIZE = ConfigKeys.newConfigKey(
             "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 3);
     public static boolean CLUSTER_SERVICE_UP = false;
+    public VanillaJavaApp ycsbClient;
 
     public static void main(String[] argv) {
         List<String> args = Lists.newArrayList(argv);
-        String port =  CommandLineUtil.getCommandLineOption(args, "--port", "8081+");
+        String port = CommandLineUtil.getCommandLineOption(args, "--port", "8081+");
         String location = CommandLineUtil.getCommandLineOption(args, "--location", "aws-ec2:us-west-1");
 
         BrooklynLauncher launcher = BrooklynLauncher.newInstance()
@@ -55,7 +46,6 @@ public class CassandraClusterWithYCSB extends AbstractApplication {
         Entities.dumpInfo(launcher.getApplications());
     }
 
-    public VanillaJavaApp ycsbClient;
     @Override
     public void init() {
         CassandraCluster myCluster = addChild(EntitySpec.create(CassandraCluster.class)
@@ -125,9 +115,8 @@ public class CassandraClusterWithYCSB extends AbstractApplication {
                 .configure(VanillaJavaApp.ARGS, myArgs));
     }
 
-    @Effector(description="Load Workload A to Cassandra")
-    public void loadWorkloadA()
-    {
+    @Effector(description = "Load Workload A to Cassandra")
+    public void loadWorkloadA() {
         Map configurations = Maps.newHashMap();
         ArrayList myResources = Lists.newArrayList();
 
@@ -143,10 +132,10 @@ public class CassandraClusterWithYCSB extends AbstractApplication {
         myArgs.add("-db com.yahoo.ycsb.db.CassandraClient10");
         myArgs.add("-P workloada");
 
-        configurations.put(VanillaJavaApp.MAIN_CLASS,"com.yahoo.ycsb.Client");
-        configurations.put(VanillaJavaApp.CLASSPATH,myResources);
-        configurations.put(VanillaJavaApp.ARGS,myArgs);
+        configurations.put(VanillaJavaApp.MAIN_CLASS, "com.yahoo.ycsb.Client");
+        configurations.put(VanillaJavaApp.CLASSPATH, myResources);
+        configurations.put(VanillaJavaApp.ARGS, myArgs);
 
-        ycsbClient.invoke(ycsbClient.START,configurations);
+        ycsbClient.invoke(ycsbClient.START, configurations);
     }
 }

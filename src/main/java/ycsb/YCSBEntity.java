@@ -1,11 +1,8 @@
 package ycsb;
 
 import brooklyn.config.ConfigKey;
-import brooklyn.entity.Effector;
-import brooklyn.entity.basic.ConfigKeys;
 import brooklyn.entity.effector.Effectors;
 import brooklyn.entity.java.VanillaJavaApp;
-import brooklyn.entity.java.VanillaJavaAppImpl;
 import brooklyn.entity.proxying.ImplementedBy;
 import brooklyn.event.AttributeSensor;
 import brooklyn.event.basic.BasicConfigKey;
@@ -18,10 +15,10 @@ import java.util.List;
 public interface YCSBEntity extends VanillaJavaApp {
 
 
-    ConfigKey<List> HOSTNAMES = new BasicConfigKey<List>(List.class,"ycsb.hostnames","list of all hostnames to benchmark",Lists.newArrayList());
+    ConfigKey<List> HOSTNAMES = new BasicConfigKey<List>(List.class, "ycsb.hostnames", "list of all hostnames to benchmark", Lists.newArrayList());
     AttributeSensor<Integer> INSERT_START = Sensors.newIntegerSensor("insertstart");
     //ConfigKey<Integer> NO_OF_RECORDS = ConfigKeys.newIntegerConfigKey("noOfRecords");
-
+    AttributeSensor<Integer> RECORD_COUNT = Sensors.newIntegerSensor("recordcount");
 
     brooklyn.entity.Effector<String> LOAD_EFFECTOR = Effectors.effector(String.class, "loadEffector")
             .description("Loads a new workload to the database")
@@ -41,5 +38,7 @@ public interface YCSBEntity extends VanillaJavaApp {
 
 
     Integer getInsertStart();
+
+    Integer getRecordCount();
     //Integer getNoOfRecords();
 }

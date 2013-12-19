@@ -15,8 +15,7 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     private static final Logger log = LoggerFactory.getLogger(YCSBEntityImpl.class);
 
     @Override
-    public void init()
-    {
+    public void init() {
         super.init();
         getMutableEntityType().addEffector(LOAD_EFFECTOR, new EffectorBody<String>() {
             @Override
@@ -31,10 +30,11 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
                 return getDriver().runWorkload((String) parameters.getStringKey("workload")).block().getStdout();
             }
         });
-    } 
+    }
+
     public void loadWorkloadEffector(String workload) {
 
-        log.info("Loading wokload {} on YCSB Entity with id: {}",workload,getId());
+        log.info("Loading wokload {} on YCSB Entity with id: {}", workload, getId());
         YCSBEntityDriver driver = getDriver();
         driver.loadWorkload(workload);
 
@@ -42,16 +42,19 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
 
     public void runWorkloadEffector(String workload) {
 
-        log.info("Running wokload {} on YCSB Entity with id: {}",workload,getId());
+        log.info("Running wokload {} on YCSB Entity with id: {}", workload, getId());
         YCSBEntityDriver driver = getDriver();
         driver.runWorkload(workload);
     }
 
+    @Override
+    public Integer getInsertStart() {
+        return getAttribute(INSERT_START);
+    }
 
     @Override
-    public Integer getInsertStart()
-    {
-        return getAttribute(INSERT_START);
+    public Integer getRecordCount() {
+        return getAttribute(RECORD_COUNT);
     }
 
     @Override
@@ -75,8 +78,7 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     }
 
     @Override
-    public YCSBEntityDriver getDriver()
-    {
+    public YCSBEntityDriver getDriver() {
         return (YCSBEntityDriver) super.getDriver();
     }
 }

@@ -8,7 +8,6 @@ import brooklyn.util.task.DynamicTasks;
 import brooklyn.util.task.system.ProcessTaskWrapper;
 import brooklyn.util.text.Strings;
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -19,7 +18,6 @@ import java.util.Map;
 import static java.lang.String.format;
 
 public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSBEntityDriver {
-
 
 
     public YCSBEntitySshDriver(VanillaJavaAppImpl entity, SshMachineLocation machine) {
@@ -63,6 +61,10 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
     public Integer getInsertStart() {
         return entity.getAttribute(YCSBEntity.INSERT_START);
+    }
+
+    public Integer getRecordCount() {
+        return entity.getAttribute(YCSBEntity.RECORD_COUNT);
     }
 
     public String getHostnames() {
@@ -130,12 +132,13 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         String args = getArgs();
         String insertStart = Integer.toString(getInsertStart());
         String hostnames = getHostnames();
+        String recordcount = Integer.toString(getRecordCount());
 
         return format("java $JAVA_OPTS -cp \"lib/*\" %s %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -load" +
-                " -P lib/" + workload + " -p insertstart=%s -s -p recordcount=10000000 -threads 10 " +
+                " -P lib/" + workload + " -p insertstart=%s -s -p recordcount=%s -threads 10 " +
                 "-p hosts=%s > load.dat"
-                , clazz, args, insertStart, hostnames);
+                , clazz, args, insertStart, recordcount, hostnames);
     }
 
     public String getRunCmd(String workload) {

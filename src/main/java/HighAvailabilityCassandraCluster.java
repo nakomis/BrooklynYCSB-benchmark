@@ -15,11 +15,11 @@
  */
 
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import brooklyn.config.ConfigKey;
-import brooklyn.entity.basic.*;
+import brooklyn.entity.basic.AbstractApplication;
+import brooklyn.entity.basic.ConfigKeys;
+import brooklyn.entity.basic.Entities;
+import brooklyn.entity.basic.StartableApplication;
 import brooklyn.entity.nosql.cassandra.CassandraCluster;
 import brooklyn.entity.nosql.cassandra.CassandraNode;
 import brooklyn.entity.proxying.EntitySpec;
@@ -34,14 +34,15 @@ import brooklyn.policy.ha.ServiceFailureDetector;
 import brooklyn.policy.ha.ServiceReplacer;
 import brooklyn.policy.ha.ServiceRestarter;
 import brooklyn.util.CommandLineUtil;
-
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ycsb.YCSBEntity;
 import ycsb.YCSBEntityCluster;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class HighAvailabilityCassandraCluster extends AbstractApplication {
@@ -53,10 +54,8 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
     public static final ConfigKey<Integer> CASSANDRA_CLUSTER_SIZE = ConfigKeys.newConfigKey(
             "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 2);
     private static final Logger log = LoggerFactory.getLogger(HighAvailabilityCassandraCluster.class);
-
-    private final Object mutex = new Object[0];
     private static final AtomicBoolean scriptBoolean = new AtomicBoolean();
-
+    private final Object mutex = new Object[0];
     private CassandraCluster cassandraCluster;
 
     public static void main(String[] argv) {
@@ -98,7 +97,7 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
                 if (event.getSource() instanceof CassandraNode && scriptBoolean.compareAndSet(false, true)) {
 
                     CassandraNode anyNode = (CassandraNode) event.getSource();
-                  log.info("Creating keyspace 'usertable' with column family 'data' on Node {}", event.getSource().getId());
+                    log.info("Creating keyspace 'usertable' with column family 'data' on Node {}", event.getSource().getId());
 
                     Entities.invokeEffectorWithArgs(HighAvailabilityCassandraCluster.this, anyNode, CassandraNode.EXECUTE_SCRIPT, "create keyspace usertable with placement_strategy = " +
                             "'org.apache.cassandra.locator.SimpleStrategy' and strategy_options = {replication_factor:3};" +

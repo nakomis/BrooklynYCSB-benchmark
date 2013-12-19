@@ -1,7 +1,8 @@
 package ycsb;
 
 import brooklyn.entity.Entity;
-import brooklyn.entity.basic.*;
+import brooklyn.entity.basic.Entities;
+import brooklyn.entity.basic.EntityInternal;
 import brooklyn.entity.group.AbstractMembershipTrackingPolicy;
 import brooklyn.entity.group.DynamicClusterImpl;
 import brooklyn.entity.proxying.EntitySpec;
@@ -19,24 +20,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEntityCluster {
 
+    private static final Logger log = LoggerFactory.getLogger(YCSBEntityClusterImpl.class);
     private static AtomicInteger insertStartForEntity = new AtomicInteger();
     private static Integer numOfRecords;
     private static Integer insertStartFactor;
-    private static final Logger log = LoggerFactory.getLogger(YCSBEntityClusterImpl.class);
 
     public YCSBEntityClusterImpl() {
         super();
     }
 
     @Override
-    public String executeScript(String commands) {
-        return null;
-    }
-
-    @Override
     public void loadWorkloadForAll(String workload) {
 
-        log.info("Loading workload: {} to the database.",workload);
+        log.info("Loading workload: {} to the database.", workload);
         final String myWorkload = workload;
 
         Iterables.transform(Iterables.filter(getMembers(), YCSBEntity.class), new Function<YCSBEntity, Void>() {
@@ -45,7 +41,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             @Override
             public Void apply(@Nullable YCSBEntity ycsbEntity) {
 
-                Entities.invokeEffectorWithArgs(YCSBEntityClusterImpl.this,ycsbEntity,YCSBEntity.LOAD_EFFECTOR,myWorkload);
+                Entities.invokeEffectorWithArgs(YCSBEntityClusterImpl.this, ycsbEntity, YCSBEntity.LOAD_EFFECTOR, myWorkload);
                 return null;
             }
         });
@@ -55,7 +51,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     @Override
     public void runWorkloadForAll(String workload) {
 
-        log.info("Running workload: {} on the database.",workload);
+        log.info("Running workload: {} on the database.", workload);
         final String myWorkload = workload;
 
         Iterables.transform(Iterables.filter(getMembers(), YCSBEntity.class), new Function<YCSBEntity, Void>() {
@@ -64,7 +60,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             @Override
             public Void apply(@Nullable YCSBEntity ycsbEntity) {
 
-                Entities.invokeEffectorWithArgs(YCSBEntityClusterImpl.this,ycsbEntity,YCSBEntity.RUN_EFFECTOR,myWorkload);
+                Entities.invokeEffectorWithArgs(YCSBEntityClusterImpl.this, ycsbEntity, YCSBEntity.RUN_EFFECTOR, myWorkload);
                 return null;
             }
         });
@@ -89,6 +85,8 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
 
                 ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_START, insertStartForEntity.get() * insertStartFactor);
                 insertStartForEntity.incrementAndGet();
+
+                ((EntityInternal) member).setAttribute(YCSBEntity.RECORD_COUNT, getConfig(YCSBEntityCluster.NO_OF_RECORDS));
             }
 
             @Override
