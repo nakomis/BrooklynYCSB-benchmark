@@ -2,7 +2,10 @@ package ycsb;
 
 import brooklyn.entity.java.VanillaJavaAppImpl;
 import brooklyn.entity.java.VanillaJavaAppSshDriver;
+import brooklyn.entity.software.SshEffectorTasks;
 import brooklyn.location.basic.SshMachineLocation;
+import brooklyn.util.task.DynamicTasks;
+import brooklyn.util.task.system.ProcessTaskWrapper;
 import brooklyn.util.text.Strings;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
@@ -16,6 +19,9 @@ import java.util.Map;
 import static java.lang.String.format;
 
 public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSBEntityDriver {
+
+
+
     public YCSBEntitySshDriver(VanillaJavaAppImpl entity, SshMachineLocation machine) {
         super(entity, machine);
     }
@@ -97,15 +103,26 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return super.getCustomJavaSystemProperties();
     }
 
-    public void loadWorkloadA() {
-        newScript(LAUNCHING).
-                body.append(
-                format(getLoadCmd("workloada"))
-        ).execute();
+    public ProcessTaskWrapper<Integer> loadWorkload(String workload) {
+
+        return DynamicTasks.queue(SshEffectorTasks.ssh(
+                "cd " + getRunDir(),
+                getLoadCmd(workload)));
+//        newScript(LAUNCHING).
+//                body.append(
+//                format(getLoadCmd(workload))
+//        ).execute();
     }
 
-    public void runWorkloadA() {
+    public ProcessTaskWrapper<Integer> runWorkload(String workload) {
 
+        return DynamicTasks.queue(SshEffectorTasks.ssh(
+                "cd " + getRunDir(),
+                getRunCmd(workload)));
+//        newScript(LAUNCHING).
+//                body.append(
+//                format(getRunCmd(workload))
+//        ).execute();
     }
 
     public String getLoadCmd(String workload) {
