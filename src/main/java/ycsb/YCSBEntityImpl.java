@@ -1,6 +1,7 @@
 package ycsb;
 
 
+import brooklyn.entity.basic.SoftwareProcess;
 import brooklyn.entity.effector.EffectorBody;
 import brooklyn.entity.java.VanillaJavaAppImpl;
 import brooklyn.util.config.ConfigBag;
@@ -17,19 +18,20 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     @Override
     public void init() {
         super.init();
-        getMutableEntityType().addEffector(LOAD_EFFECTOR, new EffectorBody<String>() {
-            @Override
-            public String call(ConfigBag parameters) {
-                return getDriver().loadWorkload((String) parameters.getStringKey("workload")).block().getStdout();
-            }
-        });
-
-        getMutableEntityType().addEffector(RUN_EFFECTOR, new EffectorBody<String>() {
-            @Override
-            public String call(ConfigBag parameters) {
-                return getDriver().runWorkload((String) parameters.getStringKey("workload")).block().getStdout();
-            }
-        });
+//        getMutableEntityType().addEffector(LOAD_EFFECTOR, new EffectorBody<String>() {
+//            @Override
+//            public String call(ConfigBag parameters) {
+//
+//                return getDriver().loadWorkload((String) parameters.getStringKey("workload")).block().getStdout();
+//            }
+//        });
+//
+//        getMutableEntityType().addEffector(RUN_EFFECTOR, new EffectorBody<String>() {
+//            @Override
+//            public String call(ConfigBag parameters) {
+//                return getDriver().runWorkload((String) parameters.getStringKey("workload")).block().getStdout();
+//            }
+//        });
     }
 
     public void loadWorkloadEffector(String workload) {
@@ -80,5 +82,13 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     @Override
     public YCSBEntityDriver getDriver() {
         return (YCSBEntityDriver) super.getDriver();
+    }
+
+    @Override
+    public void connectSensors()
+    {
+        connectedSensors = true;
+        connectServiceUpIsRunning();
+
     }
 }

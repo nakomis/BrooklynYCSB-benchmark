@@ -7,8 +7,12 @@ import brooklyn.entity.annotation.EffectorParam;
 import brooklyn.entity.basic.ConfigKeys;
 import brooklyn.entity.group.DynamicCluster;
 import brooklyn.entity.proxying.ImplementedBy;
+import brooklyn.event.AttributeSensor;
+import brooklyn.event.basic.Sensors;
+import com.google.common.reflect.TypeToken;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Created by zaid.mohsin on 16/12/2013.
@@ -18,7 +22,8 @@ public interface YCSBEntityCluster extends DynamicCluster {
 
 
     ConfigKey<Integer> NO_OF_RECORDS = ConfigKeys.newIntegerConfigKey("noOfRecords");
-
+    AttributeSensor<List<String>> YCSB_CLUSTER_NODES = Sensors.newSensor(new TypeToken<List<String>>() {},
+            "ycsb.cluster.nodes", "List of hosts of all active ycsb nodes in the cluster (public hostname/IP)");
     @Override
     void setMembers(Collection<Entity> m);
 

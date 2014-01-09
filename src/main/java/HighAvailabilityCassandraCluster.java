@@ -34,6 +34,7 @@ import brooklyn.policy.ha.ServiceFailureDetector;
 import brooklyn.policy.ha.ServiceReplacer;
 import brooklyn.policy.ha.ServiceRestarter;
 import brooklyn.util.CommandLineUtil;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
@@ -52,10 +53,10 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
     public static final ConfigKey<Integer> NUM_AVAILABILITY_ZONES = ConfigKeys.newConfigKey(
             "cassandra.cluster.numAvailabilityZones", "Number of availability zones to spread the cluster across", 1);
     public static final ConfigKey<Integer> CASSANDRA_CLUSTER_SIZE = ConfigKeys.newConfigKey(
-            "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 2);
+            "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 3);
     private static final Logger log = LoggerFactory.getLogger(HighAvailabilityCassandraCluster.class);
     private static final AtomicBoolean scriptBoolean = new AtomicBoolean();
-    private final Object mutex = new Object[0];
+
     private CassandraCluster cassandraCluster;
 
     public static void main(String[] argv) {
@@ -106,17 +107,15 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
 
                     setAttribute(scriptExecuted, true);
                 }
+            }});
 
-            }
 
-
-        });
 
 
         //create the YCSB Entities
         addChild(EntitySpec.create(YCSBEntityCluster.class)
                 .configure(YCSBEntityCluster.INITIAL_SIZE, 2)
-                .configure(YCSBEntityCluster.NO_OF_RECORDS, 1000000)
+                .configure(YCSBEntityCluster.NO_OF_RECORDS, 100000)
                 .configure(YCSBEntityCluster.MEMBER_SPEC, EntitySpec.create(YCSBEntity.class)
                         .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
                         .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar"

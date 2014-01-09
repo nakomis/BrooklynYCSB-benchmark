@@ -4,6 +4,7 @@ import brooklyn.entity.java.VanillaJavaAppImpl;
 import brooklyn.entity.java.VanillaJavaAppSshDriver;
 import brooklyn.entity.software.SshEffectorTasks;
 import brooklyn.location.basic.SshMachineLocation;
+import brooklyn.util.MutableMap;
 import brooklyn.util.task.DynamicTasks;
 import brooklyn.util.task.system.ProcessTaskWrapper;
 import brooklyn.util.text.Strings;
@@ -14,8 +15,6 @@ import com.google.common.collect.Lists;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
-
-import static java.lang.String.format;
 
 public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSBEntityDriver {
 
@@ -105,52 +104,57 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return super.getCustomJavaSystemProperties();
     }
 
-    public ProcessTaskWrapper<Integer> loadWorkload(String workload) {
+    public void loadWorkload(String workload) {
 
-        return DynamicTasks.queue(SshEffectorTasks.ssh(
-                "cd " + getRunDir(),
-                getLoadCmd(workload)));
-//        newScript(LAUNCHING).
-//                body.append(
-//                format(getLoadCmd(workload))
-//        ).execute();
+
+    log.info("loading script: {}" , getLoadCmd(workload));
+        newScript(MutableMap.of(), LAUNCHING)
+                .failOnNonZeroResultCode()
+                .body.append(getLoadCmd(workload))
+                .execute();
     }
 
-    public ProcessTaskWrapper<Integer> runWorkload(String workload) {
+    public void runWorkload(String workload) {
 
-        return DynamicTasks.queue(SshEffectorTasks.ssh(
-                "cd " + getRunDir(),
-                getRunCmd(workload)));
-//        newScript(LAUNCHING).
-//                body.append(
-//                format(getRunCmd(workload))
-//        ).execute();
+
+    log.info("running script: {}" , getRunCmd(workload));
+        newScript(MutableMap.of(), LAUNCHING)
+                .failOnNonZeroResultCode()
+                .body.append(getRunCmd(workload))
+                .execute();
+
     }
 
     public String getLoadCmd(String workload) {
+
+
         String clazz = getEntity().getMainClass();
-        String args = getArgs();
+        //String args = getArgs();
         String insertStart = Integer.toString(getInsertStart());
         String hostnames = getHostnames();
+
         String recordcount = Integer.toString(getRecordCount());
 
-        return format("java $JAVA_OPTS -cp \"lib/*\" %s %s " +
+
+        String loadcmd = String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -load" +
-                " -P lib/" + workload + " -p insertstart=%s -s -p recordcount=%s -threads 10 " +
+                " -P lib/%s -p insertstart=%s -s -p recordcount=%s -threads 10 " +
                 "-p hosts=%s > load.dat"
-                , clazz, args, insertStart, recordcount, hostnames);
+                , clazz, workload, insertStart, recordcount, hostnames);
+
+        return loadcmd;
     }
 
     public String getRunCmd(String workload) {
         String clazz = getEntity().getMainClass();
-        String args = getArgs();
-        String insertStart = Integer.toString(getInsertStart());
+        //String args = getArgs();
         String hostnames = getHostnames();
 
-        return format("java $JAVA_OPTS -cp \"lib/*\" %s %s " +
-                "-db com.yahoo.ycsb.db.CassandraClient10 -run" +
-                "-P lib/" + workload + " -p insertstart=%s -p hosts=%s" +
-                " >> %s/console 2>&1 </dev/null &", clazz, args, insertStart, hostnames, getRunDir());
+        return String.format("java -cp \"lib/*\" %s " +
+                " -db com.yahoo.ycsb.db.CassandraClient10 -t " +
+                " -P lib/%s -s -threads 10 " +
+                "-p hosts=%s > transactions.dat"
+                , clazz, workload, hostnames);
     }
 
 }

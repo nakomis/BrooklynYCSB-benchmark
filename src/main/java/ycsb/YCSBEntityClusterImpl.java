@@ -1,18 +1,28 @@
 package ycsb;
 
 import brooklyn.entity.Entity;
+import brooklyn.entity.basic.Attributes;
 import brooklyn.entity.basic.Entities;
 import brooklyn.entity.basic.EntityInternal;
+import brooklyn.entity.basic.EntityPredicates;
 import brooklyn.entity.group.AbstractMembershipTrackingPolicy;
 import brooklyn.entity.group.DynamicClusterImpl;
 import brooklyn.entity.proxying.EntitySpec;
+import brooklyn.entity.trait.Startable;
+import brooklyn.entity.trait.StartableMethods;
+import brooklyn.management.Task;
 import brooklyn.util.collections.MutableMap;
 import com.google.common.base.Function;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -24,6 +34,8 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     private static AtomicInteger insertStartForEntity = new AtomicInteger();
     private static Integer numOfRecords;
     private static Integer insertStartFactor;
+    private static List<String> hostnamesList = Lists.newArrayList();
+    private final Object mutex = new Object[0];
 
     public YCSBEntityClusterImpl() {
         super();
@@ -31,20 +43,26 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
 
     @Override
     public void loadWorkloadForAll(String workload) {
-
         log.info("Loading workload: {} to the database.", workload);
-        final String myWorkload = workload;
+        //final String myWorkload = workload;
 
-        Iterables.transform(Iterables.filter(getMembers(), YCSBEntity.class), new Function<YCSBEntity, Void>() {
-
-            @Nullable
-            @Override
-            public Void apply(@Nullable YCSBEntity ycsbEntity) {
-
-                Entities.invokeEffectorWithArgs(YCSBEntityClusterImpl.this, ycsbEntity, YCSBEntity.LOAD_EFFECTOR, myWorkload);
-                return null;
-            }
-        });
+//        List<YCSBEntity> myMembers = Lists.newArrayList(Iterables.filter(getMembers(),YCSBEntity.class));
+//        for (YCSBEntity myEntity: myMembers)
+//        {
+//            log.info("Invoking load " + workload + " on " + myEntity.getId());
+//
+//            myEntity.loadWorkloadEffector(workload);
+//        }
+       try
+       {
+        Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
+        Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.LOAD_WORKLOAD,workload);
+        if (invoke != null) invoke.get();
+       }
+       catch (Exception e)
+       {
+           log.info("Exception is caught {}",e.toString());
+       }
 
     }
 
@@ -52,18 +70,24 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     public void runWorkloadForAll(String workload) {
 
         log.info("Running workload: {} on the database.", workload);
-        final String myWorkload = workload;
+//        List<YCSBEntity> myMembers = Lists.newArrayList(Iterables.filter(getMembers(),YCSBEntity.class));
+//        for (YCSBEntity myEntity: myMembers)
+//        {
+//            log.info("Invoking run " + workload + " on " + myEntity.getId());
+//
+//            myEntity.runWorkloadEffector(workload);
+//        }
 
-        Iterables.transform(Iterables.filter(getMembers(), YCSBEntity.class), new Function<YCSBEntity, Void>() {
-
-            @Nullable
-            @Override
-            public Void apply(@Nullable YCSBEntity ycsbEntity) {
-
-                Entities.invokeEffectorWithArgs(YCSBEntityClusterImpl.this, ycsbEntity, YCSBEntity.RUN_EFFECTOR, myWorkload);
-                return null;
-            }
-        });
+        try
+        {
+            Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
+            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.RUN_WORKLOAD,workload);
+            if (invoke != null) invoke.get();
+        }
+        catch (Exception e)
+        {
+            log.info("Exception is caught {}",e.toString());
+        }
 
     }
 
@@ -72,7 +96,14 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         log.info("Initializing the YCSB Cluster");
         super.init();
         numOfRecords = this.getConfig(YCSBEntityCluster.NO_OF_RECORDS);
+        Integer clusterSize = getConfig(YCSBEntityCluster.INITIAL_SIZE);
         insertStartFactor = numOfRecords / getConfig(YCSBEntityCluster.INITIAL_SIZE);
+
+        log.info("populating fields of cluster size: {}",Integer.toString(clusterSize));
+        log.info("number of records: {}",numOfRecords);
+        log.info("insertStartFactor: {}", insertStartFactor);
+
+
 
         // track members
         AbstractMembershipTrackingPolicy policy = new AbstractMembershipTrackingPolicy(MutableMap.of("name", "YCSB Entities")) {
@@ -83,10 +114,17 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             @Override
             protected void onEntityAdded(Entity member) {
 
-                ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_START, insertStartForEntity.get() * insertStartFactor);
-                insertStartForEntity.incrementAndGet();
+                if (member.getAttribute(YCSBEntity.INSERT_START) == null) {
+                    log.info("Setting the insert start for entity: {}",insertStartForEntity.get());
+                    ((EntityInternal) member).setAttribute(YCSBEntity.RECORD_COUNT, numOfRecords);
 
-                ((EntityInternal) member).setAttribute(YCSBEntity.RECORD_COUNT, getConfig(YCSBEntityCluster.NO_OF_RECORDS));
+
+                ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_START, insertStartForEntity.getAndIncrement() * insertStartFactor);
+                    hostnamesList.add(member.getAttribute(Attributes.HOSTNAME));
+
+                }
+
+
             }
 
             @Override
@@ -95,6 +133,9 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         };
         addPolicy(policy);
         policy.setGroup(this);
+
+        //set the list of hostnames for the ycsb nodes.
+        setAttribute(YCSBEntityCluster.YCSB_CLUSTER_NODES,hostnamesList);
 
     }
 
