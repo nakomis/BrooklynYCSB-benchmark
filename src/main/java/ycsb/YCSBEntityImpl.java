@@ -50,6 +50,12 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     }
 
     @Override
+    public void fetchOutputs(String localpath) {
+        log.info("Fetching output files from {} to {} on local machine",getId(),localpath);
+        getDriver().fetchOutputs(localpath);
+    }
+
+    @Override
     public Integer getInsertStart() {
         return getAttribute(INSERT_START);
     }

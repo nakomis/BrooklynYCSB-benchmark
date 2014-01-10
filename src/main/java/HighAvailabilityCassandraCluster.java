@@ -116,6 +116,8 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
         addChild(EntitySpec.create(YCSBEntityCluster.class)
                 .configure(YCSBEntityCluster.INITIAL_SIZE, 2)
                 .configure(YCSBEntityCluster.NO_OF_RECORDS, 100000)
+                .configure(YCSBEntityCluster.TOTAL_OPERATIONS_COUNT,10000000)
+                .configure(YCSBEntityCluster.LOCAL_OUTPUT_PATH,"/Users/zaid.mohsin/Dev/ycsboutput")
                 .configure(YCSBEntityCluster.MEMBER_SPEC, EntitySpec.create(YCSBEntity.class)
                         .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
                         .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar"

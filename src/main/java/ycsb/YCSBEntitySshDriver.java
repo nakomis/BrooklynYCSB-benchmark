@@ -62,8 +62,18 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return entity.getAttribute(YCSBEntity.INSERT_START);
     }
 
+    public Integer getInsertCount()
+    {
+        return entity.getAttribute(YCSBEntity.INSERT_COUNT);
+    }
+
     public Integer getRecordCount() {
         return entity.getAttribute(YCSBEntity.RECORD_COUNT);
+    }
+
+    public Integer getOperationsCount()
+    {
+        return entity.getAttribute(YCSBEntity.OPERATIONS_COUNT);
     }
 
     public String getHostnames() {
@@ -131,6 +141,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         String clazz = getEntity().getMainClass();
         //String args = getArgs();
         String insertStart = Integer.toString(getInsertStart());
+        String insertCount = Integer.toString(getInsertCount());
         String hostnames = getHostnames();
 
         String recordcount = Integer.toString(getRecordCount());
@@ -138,9 +149,9 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
         String loadcmd = String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -load" +
-                " -P lib/%s -p insertstart=%s -s -p recordcount=%s -threads 10 " +
+                " -P lib/%s -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 10 " +
                 "-p hosts=%s > load.dat"
-                , clazz, workload, insertStart, recordcount, hostnames);
+                , clazz, workload, insertStart, insertCount, recordcount, hostnames);
 
         return loadcmd;
     }
@@ -149,12 +160,21 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         String clazz = getEntity().getMainClass();
         //String args = getArgs();
         String hostnames = getHostnames();
+        String operationsCount = Integer.toString(getOperationsCount());
 
         return String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -t " +
                 " -P lib/%s -s -threads 10 " +
+                "-p operationcount=%s " +
                 "-p hosts=%s > transactions.dat"
-                , clazz, workload, hostnames);
+                , clazz, workload, operationsCount, hostnames);
+    }
+
+    public void fetchOutputs(String localpath)
+    {
+        log.info("Copying files to {}" , localpath);
+        getMachine().copyFrom(getRunDir() + "/load.dat",localpath +"/load" + entity.getId() + ".dat");
+       getMachine().copyFrom(getRunDir() + "/transactions.dat",localpath +"/transactions" + entity.getId() + ".dat");
     }
 
 }
