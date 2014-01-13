@@ -18,20 +18,6 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     @Override
     public void init() {
         super.init();
-//        getMutableEntityType().addEffector(LOAD_EFFECTOR, new EffectorBody<String>() {
-//            @Override
-//            public String call(ConfigBag parameters) {
-//
-//                return getDriver().loadWorkload((String) parameters.getStringKey("workload")).block().getStdout();
-//            }
-//        });
-//
-//        getMutableEntityType().addEffector(RUN_EFFECTOR, new EffectorBody<String>() {
-//            @Override
-//            public String call(ConfigBag parameters) {
-//                return getDriver().runWorkload((String) parameters.getStringKey("workload")).block().getStdout();
-//            }
-//        });
     }
 
     public void loadWorkloadEffector(String workload) {

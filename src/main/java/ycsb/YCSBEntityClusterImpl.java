@@ -12,10 +12,12 @@ import brooklyn.util.collections.MutableMap;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -28,8 +30,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     private static Integer numOfRecords;
     private static Integer insertCount;
     private static Integer operationCountPerNode;
-    private static List<String> hostnamesList = Lists.newArrayList();
-    private final Object mutex = new Object[0];
+    private static final Set<String> hostnamesList = Sets.newHashSet();
 
     public YCSBEntityClusterImpl() {
         super();
@@ -38,15 +39,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     @Override
     public void loadWorkloadForAll(String workload) {
         log.info("Loading workload: {} to the database.", workload);
-        //final String myWorkload = workload;
 
-//        List<YCSBEntity> myMembers = Lists.newArrayList(Iterables.filter(getMembers(),YCSBEntity.class));
-//        for (YCSBEntity myEntity: myMembers)
-//        {
-//            log.info("Invoking load " + workload + " on " + myEntity.getId());
-//
-//            myEntity.loadWorkloadEffector(workload);
-//        }
         try {
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
             Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.LOAD_WORKLOAD, workload);
@@ -61,13 +54,6 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     public void runWorkloadForAll(String workload) {
 
         log.info("Running workload: {} on the database.", workload);
-//        List<YCSBEntity> myMembers = Lists.newArrayList(Iterables.filter(getMembers(),YCSBEntity.class));
-//        for (YCSBEntity myEntity: myMembers)
-//        {
-//            log.info("Invoking run " + workload + " on " + myEntity.getId());
-//
-//            myEntity.runWorkloadEffector(workload);
-//        }
 
         try {
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
@@ -130,6 +116,12 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
                     //add the number of operations each node is responsible for.
                     ((EntityInternal) member).setAttribute(YCSBEntity.OPERATIONS_COUNT, operationCountPerNode);
                 }
+
+                if (Boolean.TRUE.equals(member.getAttribute(SERVICE_UP)))
+                {
+                    hostnamesList.add(member.getAttribute(YCSBEntity.HOSTNAME));
+                    setAttribute(YCSB_CLUSTER_NODES,Lists.newArrayList(hostnamesList));
+                }
             }
 
             @Override
@@ -139,8 +131,6 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         addPolicy(policy);
         policy.setGroup(this);
 
-        //set the list of hostnames for the ycsb nodes.
-        setAttribute(YCSBEntityCluster.YCSB_CLUSTER_NODES, hostnamesList);
 
     }
 

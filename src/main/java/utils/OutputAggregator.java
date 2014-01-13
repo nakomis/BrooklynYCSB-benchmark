@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -19,9 +18,11 @@ import java.util.concurrent.Future;
  */
 public class OutputAggregator {
 
+    private static final List<String> LIST_OF_LABELS = Lists.newArrayList("RunTime(ms)", "Throughput(ops/sec)", "AverageLatency(us)", "MinLatency(us)", "MaxLatency(us)");
     private final ExecutorService executorService = Executors.newFixedThreadPool(16);
     private List<List<String>> loadAggregateList;
     private List<List<String>> transactionAggregateList;
+    private File folder;
 
     public static void main(String[] args) {
         OutputAggregator myAgg = new OutputAggregator();
@@ -47,7 +48,7 @@ public class OutputAggregator {
         List<List<List<String>>> myLoadList = Lists.newArrayList();
         List<List<List<String>>> myTransactionList = Lists.newArrayList();
 
-        File folder = new File("/Users/zaid.mohsin/Dev/ycsboutput");
+        folder = new File("/Users/zaid.mohsin/Dev/ycsboutput");
 
         File[] files = folder.listFiles();
 
@@ -55,10 +56,7 @@ public class OutputAggregator {
         for (File f : files) {
 
             if (checkLoadFile(f)) loadFiles.add(f);
-
-
             if (checkTransactionFile(f)) transactionFiles.add(f);
-
 
         }
 
@@ -88,7 +86,7 @@ public class OutputAggregator {
             if (loadAggregateList.isEmpty())
                 loadAggregateList = Lists.newArrayList(mylist);
             else
-            addToList(mylist, loadAggregateList);
+                addToList(mylist, loadAggregateList);
         }
 
 
@@ -97,9 +95,12 @@ public class OutputAggregator {
             if (transactionAggregateList.isEmpty())
                 transactionAggregateList = Lists.newArrayList(mylist);
             else
-            addToList(mylist, transactionAggregateList);
+                addToList(mylist, transactionAggregateList);
         }
 
+
+        calculateAverages(loadAggregateList, loadFiles.size());
+        calculateAverages(transactionAggregateList, transactionFiles.size());
 
         generateOutputFile(loadAggregateList, "aggloadfinal.dat");
         generateOutputFile(transactionAggregateList, "aggtransactionfinal.dat");
@@ -115,25 +116,17 @@ public class OutputAggregator {
         return (f.isFile() && f.getName().length() > 12 && f.getName().substring(0, 12).equalsIgnoreCase("transactions") ? true : false);
     }
 
-    public void addToList(List<List<String>> myList, List<List<String>> finalList) throws ParseException{
-
-        List<String> listOfAverageLabels = Lists.newArrayList("RunTime(ms)", "Throughput(ops/sec)", "AverageLatency(us)", "MinLatency(us)", "MaxLatency(us)");
+    public void addToList(List<List<String>> myList, List<List<String>> finalList) throws ParseException {
 
 
         //add the values
-        DecimalFormat myDecimalFormat = new DecimalFormat();
-        myDecimalFormat.setParseBigDecimal(true);
+        DecimalFormat df = new DecimalFormat();
+        df.setParseBigDecimal(true);
 
         for (int i = 0; i < myList.size(); i++) {
 
 
-
-            if (listOfAverageLabels.contains(myList.get(i).get(1).trim()))
-                finalList.get(i).set(2,getAvg((BigDecimal) myDecimalFormat.parse(finalList.get(i).get(2).trim()), (BigDecimal) myDecimalFormat.parse(myList.get(i).get(2).trim())));
-
-            else
-                //aggregate the value
-                finalList.get(i).set(2, getAgg((BigDecimal) myDecimalFormat.parse(finalList.get(i).get(2).trim()), (BigDecimal) myDecimalFormat.parse(myList.get(i).get(2).trim())));
+            finalList.get(i).set(2, getAgg((BigDecimal) df.parse(finalList.get(i).get(2).trim()), (BigDecimal) df.parse(myList.get(i).get(2).trim())));
         }
 
     }
@@ -147,19 +140,31 @@ public class OutputAggregator {
 
         myWriter.flush();
         myWriter.close();
-    } 
-    public String getAvg(BigDecimal first, BigDecimal second)
-    {
+    }
+
+    public String getAgg(BigDecimal first, BigDecimal second) {
         first = first.add(second);
-        first.divide(new BigDecimal(2));
+
         return first.toString();
     }
 
-    public String getAgg(BigDecimal first, BigDecimal second)
-    {
-        first = first.add(second);
+    public String getAvg(BigDecimal value, int factor) {
+        value = value.divide(new BigDecimal(factor));
 
-        return first.toString();
+        return value.toString();
+    }
+
+    public void calculateAverages(List<List<String>> myFinalList, int numOfFiles) throws ParseException {
+
+
+        DecimalFormat df = new DecimalFormat();
+        df.setParseBigDecimal(true);
+
+        for (int i = 0; i < myFinalList.size(); i++) {
+            if (LIST_OF_LABELS.contains(myFinalList.get(i).get(1).trim())) {
+                myFinalList.get(i).set(2, getAvg((BigDecimal) df.parse(myFinalList.get(i).get(2)), numOfFiles));
+            }
+        }
     }
 
 

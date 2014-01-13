@@ -36,12 +36,8 @@ public class FileContentParser implements Callable<List<List<String>>> {
 
             outputFields.add(Lists.newArrayList(line.trim().split(",")));
 
-
         }
-
         return outputFields;
-
-
     }
 
     public List<List<String>> getFileAsArrayList() {

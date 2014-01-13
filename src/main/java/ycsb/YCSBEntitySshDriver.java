@@ -149,7 +149,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
         String loadcmd = String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -load" +
-                " -P lib/%s -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 10 " +
+                " -P lib/%s -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
                 "-p hosts=%s > load.dat"
                 , clazz, workload, insertStart, insertCount, recordcount, hostnames);
 
@@ -164,7 +164,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
         return String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -t " +
-                " -P lib/%s -s -threads 10 " +
+                " -P lib/%s -s -threads 200 " +
                 "-p operationcount=%s " +
                 "-p hosts=%s > transactions.dat"
                 , clazz, workload, operationsCount, hostnames);
@@ -175,6 +175,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         log.info("Copying files to {}" , localpath);
         getMachine().copyFrom(getRunDir() + "/load.dat",localpath +"/load" + entity.getId() + ".dat");
        getMachine().copyFrom(getRunDir() + "/transactions.dat",localpath +"/transactions" + entity.getId() + ".dat");
+
     }
 
 }
