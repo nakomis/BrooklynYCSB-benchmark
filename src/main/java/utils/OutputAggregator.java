@@ -22,7 +22,7 @@ public class OutputAggregator {
     private final ExecutorService executorService = Executors.newFixedThreadPool(16);
     private List<List<String>> loadAggregateList;
     private List<List<String>> transactionAggregateList;
-    private File folder;
+    private static final File FOLDER = new File("/Users/zaid.mohsin/Dev/ycsboutput");
 
     public static void main(String[] args) {
         OutputAggregator myAgg = new OutputAggregator();
@@ -48,9 +48,9 @@ public class OutputAggregator {
         List<List<List<String>>> myLoadList = Lists.newArrayList();
         List<List<List<String>>> myTransactionList = Lists.newArrayList();
 
-        folder = new File("/Users/zaid.mohsin/Dev/ycsboutput");
 
-        File[] files = folder.listFiles();
+
+        File[] files = FOLDER.listFiles();
 
         //sort the files
         for (File f : files) {
@@ -131,8 +131,8 @@ public class OutputAggregator {
 
     }
 
-    public void generateOutputFile(List<List<String>> myFinalList, String name) throws IOException {
-        PrintWriter myWriter = new PrintWriter(new File("/Users/zaid.mohsin/Dev/ycsboutput/" + name));
+    public static void generateOutputFile(List<List<String>> myFinalList, String name) throws IOException {
+        PrintWriter myWriter = new PrintWriter(new File(FOLDER.getAbsolutePath() + "/" + name));
 
         for (int i = 0; i < myFinalList.size(); i++) {
             myWriter.println(myFinalList.get(i).get(0).trim() + ", " + myFinalList.get(i).get(1).trim() + ", " + myFinalList.get(i).get(2).trim());
