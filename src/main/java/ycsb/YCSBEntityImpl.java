@@ -18,6 +18,9 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     @Override
     public void init() {
         super.init();
+
+        if (getConfig(YCSBEntity.TIMESERIES_GRANULARITY) != null)
+            setConfig(YCSBEntity.TIMESERIES,true);
     }
 
     public void loadWorkloadEffector(String workload) {

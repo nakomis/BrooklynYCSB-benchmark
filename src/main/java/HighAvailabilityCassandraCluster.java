@@ -34,7 +34,6 @@ import brooklyn.policy.ha.ServiceFailureDetector;
 import brooklyn.policy.ha.ServiceReplacer;
 import brooklyn.policy.ha.ServiceRestarter;
 import brooklyn.util.CommandLineUtil;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
@@ -56,8 +55,6 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
             "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 3);
     private static final Logger log = LoggerFactory.getLogger(HighAvailabilityCassandraCluster.class);
     private static final AtomicBoolean scriptBoolean = new AtomicBoolean();
-
-
     private CassandraCluster cassandraCluster;
 
     public static void main(String[] argv) {
@@ -108,17 +105,16 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
 
                     setAttribute(scriptExecuted, true);
                 }
-            }});
-
-
+            }
+        });
 
 
         //create the YCSB Entities
         addChild(EntitySpec.create(YCSBEntityCluster.class)
                 .configure(YCSBEntityCluster.INITIAL_SIZE, 2)
                 .configure(YCSBEntityCluster.NO_OF_RECORDS, 1000000)
-                .configure(YCSBEntityCluster.TOTAL_OPERATIONS_COUNT,1000000)
-                .configure(YCSBEntityCluster.LOCAL_OUTPUT_PATH,"/Users/zaid.mohsin/Dev/ycsboutput")
+                .configure(YCSBEntityCluster.TOTAL_OPERATIONS_COUNT, 1000000)
+                .configure(YCSBEntityCluster.LOCAL_OUTPUT_PATH, "/Users/zaid.mohsin/Dev/ycsboutput")
                 .configure(YCSBEntityCluster.MEMBER_SPEC, EntitySpec.create(YCSBEntity.class)
                         .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
                         .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar"

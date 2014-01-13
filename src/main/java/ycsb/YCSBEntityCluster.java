@@ -27,7 +27,7 @@ public interface YCSBEntityCluster extends DynamicCluster {
 
     ConfigKey<String> LOCAL_OUTPUT_PATH = ConfigKeys.newStringConfigKey("ycsbcluster.localOutputPath","the path to fetch the output files to");
     ConfigKey<Integer> TOTAL_OPERATIONS_COUNT = ConfigKeys.newIntegerConfigKey("ycsbcluster.total.operations.count","The total number of operations to benchmark the database");
-
+    ConfigKey<Integer> OPERATIONS_PER_NODE = ConfigKeys.newIntegerConfigKey("ycsbcluster.operations.per.node", "The number of operations each node should be doing");
 
     @Override
     void setMembers(Collection<Entity> m);

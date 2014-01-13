@@ -150,7 +150,8 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         String loadcmd = String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -load" +
                 " -P lib/%s -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
-                "-p hosts=%s > load.dat"
+                getTimeseries() +
+                " -p hosts=%s > load.dat"
                 , clazz, workload, insertStart, insertCount, recordcount, hostnames);
 
         return loadcmd;
@@ -164,9 +165,10 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
         return String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -t " +
-                " -P lib/%s -s -threads 200 " +
-                "-p operationcount=%s " +
-                "-p hosts=%s > transactions.dat"
+                " -P lib/%s -s -threads 200" +
+                " -p operationcount=%s " +
+                   getTimeseries() +
+                " -p hosts=%s > transactions.dat"
                 , clazz, workload, operationsCount, hostnames);
     }
 
@@ -176,6 +178,22 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         getMachine().copyFrom(getRunDir() + "/load.dat",localpath +"/load" + entity.getId() + ".dat");
        getMachine().copyFrom(getRunDir() + "/transactions.dat",localpath +"/transactions" + entity.getId() + ".dat");
 
+    }
+
+    public String getTimeseries()
+    {
+        StringBuffer timeseries;
+        if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer || Boolean.TRUE.equals(entity.getConfig(YCSBEntity.TIMESERIES)))
+        {
+            timeseries = new StringBuffer("-p measurementtype=timeseries");
+            if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer)
+                timeseries.append(" -p timeseries.granularity=" + entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY).toString());
+
+            return timeseries.toString();
+        }
+
+        else
+            return "";
     }
 
 }
