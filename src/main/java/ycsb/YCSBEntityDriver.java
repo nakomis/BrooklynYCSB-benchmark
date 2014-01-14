@@ -9,5 +9,5 @@ public interface YCSBEntityDriver extends VanillaJavaAppDriver {
 
     void runWorkload(String commands);
 
-    void fetchOutputs(String localpath);
+    void fetchOutputs(String localpath, String workload);
 }

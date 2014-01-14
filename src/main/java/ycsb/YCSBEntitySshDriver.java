@@ -168,15 +168,15 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
                 " -P lib/%s -s -threads 200" +
                 " -p operationcount=%s " +
                    getTimeseries() +
-                " -p hosts=%s > transactions.dat"
+                " -p hosts=%s > transactions-" + workload + ".dat"
                 , clazz, workload, operationsCount, hostnames);
     }
 
-    public void fetchOutputs(String localpath)
+    public void fetchOutputs(String localpath, String workload)
     {
         log.info("Copying files to {}" , localpath);
-        getMachine().copyFrom(getRunDir() + "/load.dat",localpath +"/load" + entity.getId() + ".dat");
-       getMachine().copyFrom(getRunDir() + "/transactions.dat",localpath +"/transactions" + entity.getId() + ".dat");
+        getMachine().copyFrom(getRunDir() + "/load-" + workload + ".dat",localpath +"/load" + entity.getId() + ".dat");
+       getMachine().copyFrom(getRunDir() + "/transactions-" + workload + ".dat",localpath +"/transactions" + entity.getId() + ".dat");
 
     }
 

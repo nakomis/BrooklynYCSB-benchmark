@@ -64,12 +64,12 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     }
 
     @Override
-    public void fetchOutputs() {
+    public void fetchOutputs(String workload) {
         try {
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
             String localpath = getConfig(YCSBEntityCluster.LOCAL_OUTPUT_PATH);
 
-            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.FETCH_OUTPUTS, localpath);
+            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.FETCH_OUTPUTS, localpath,workload);
             if (invoke != null) invoke.get();
         } catch (Exception e) {
             log.info("Exception is caught {}", e.toString());
