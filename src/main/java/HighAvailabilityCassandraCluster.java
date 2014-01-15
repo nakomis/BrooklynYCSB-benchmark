@@ -16,10 +16,9 @@
 
 
 import brooklyn.config.ConfigKey;
-import brooklyn.entity.basic.AbstractApplication;
-import brooklyn.entity.basic.ConfigKeys;
-import brooklyn.entity.basic.Entities;
-import brooklyn.entity.basic.StartableApplication;
+import brooklyn.entity.annotation.Effector;
+import brooklyn.entity.annotation.EffectorParam;
+import brooklyn.entity.basic.*;
 import brooklyn.entity.nosql.cassandra.CassandraCluster;
 import brooklyn.entity.nosql.cassandra.CassandraNode;
 import brooklyn.entity.proxying.EntitySpec;
@@ -45,7 +44,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
-public class HighAvailabilityCassandraCluster extends AbstractApplication {
+public class HighAvailabilityCassandraCluster extends AbstractApplication{
 
     public static final AttributeSensor<Boolean> scriptExecuted = Sensors.newBooleanSensor("scriptExecuted");
     public static final String DEFAULT_LOCATION_SPEC = "aws-ec2:us-east-1";
@@ -56,6 +55,7 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
     private static final Logger log = LoggerFactory.getLogger(HighAvailabilityCassandraCluster.class);
     private static final AtomicBoolean scriptBoolean = new AtomicBoolean();
     private CassandraCluster cassandraCluster;
+
 
     public static void main(String[] argv) {
         List<String> args = Lists.newArrayList(argv);
@@ -87,12 +87,11 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
                 .policy(PolicySpec.create(ServiceReplacer.class)
                         .configure(ServiceReplacer.FAILURE_SENSOR_TO_MONITOR, ServiceRestarter.ENTITY_RESTART_FAILED)));
 
-
         //create the benchmarking table on the Cassandra Cluster
         subscribeToMembers(cassandraCluster, CassandraCluster.SERVICE_UP, new SensorEventListener<Boolean>() {
             @Override
             public void onEvent(SensorEvent<Boolean> event) {
-
+               if (Boolean.TRUE.equals(event.getValue()))
                 if (event.getSource() instanceof CassandraNode && scriptBoolean.compareAndSet(false, true)) {
 
                     CassandraNode anyNode = (CassandraNode) event.getSource();
@@ -112,17 +111,11 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication {
         //create the YCSB Entities
         addChild(EntitySpec.create(YCSBEntityCluster.class)
                 .configure(YCSBEntityCluster.INITIAL_SIZE, 2)
-                .configure(YCSBEntityCluster.NO_OF_RECORDS, 1000000)
-                .configure(YCSBEntityCluster.TOTAL_OPERATIONS_COUNT, 1000000)
                 .configure(YCSBEntityCluster.LOCAL_OUTPUT_PATH, "/Users/zaid.mohsin/Dev/ycsboutput")
                 .configure(YCSBEntityCluster.MEMBER_SPEC, EntitySpec.create(YCSBEntity.class)
                         .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
                         .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar"
-                                , "classpath://core-0.1.4.jar",
-                                "classpath://workloada", "classpath://workloadb",
-                                "classpath://workloadc", "classpath://workloadd",
-                                "classpath://workloade", "classpath://workloadf"
-                                , "classpath://slf4j-simple-1.7.5.jar")))
+                                , "classpath://core-0.1.4.jar","classpath://slf4j-simple-1.7.5.jar")))
                 .configure(YCSBEntity.HOSTNAMES, DependentConfiguration.attributeWhenReady(cassandraCluster, CassandraCluster.CASSANDRA_CLUSTER_NODES)));
         //.configure(YCSBEntity.ARGS,ImmutableList.of("-s", "-p recordcount=10000000", "-threads 10")));
     }

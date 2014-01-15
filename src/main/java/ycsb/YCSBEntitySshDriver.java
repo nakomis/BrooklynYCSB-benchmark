@@ -2,19 +2,23 @@ package ycsb;
 
 import brooklyn.entity.java.VanillaJavaAppImpl;
 import brooklyn.entity.java.VanillaJavaAppSshDriver;
-import brooklyn.entity.software.SshEffectorTasks;
 import brooklyn.location.basic.SshMachineLocation;
-import brooklyn.util.MutableMap;
-import brooklyn.util.task.DynamicTasks;
-import brooklyn.util.task.system.ProcessTaskWrapper;
+import brooklyn.util.exceptions.Exceptions;
+import brooklyn.util.javalang.StackTraceSimplifier;
 import brooklyn.util.text.Strings;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
+
+import static java.lang.String.format;
 
 public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSBEntityDriver {
 
@@ -62,8 +66,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return entity.getAttribute(YCSBEntity.INSERT_START);
     }
 
-    public Integer getInsertCount()
-    {
+    public Integer getInsertCount() {
         return entity.getAttribute(YCSBEntity.INSERT_COUNT);
     }
 
@@ -71,8 +74,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return entity.getAttribute(YCSBEntity.RECORD_COUNT);
     }
 
-    public Integer getOperationsCount()
-    {
+    public Integer getOperationsCount() {
         return entity.getAttribute(YCSBEntity.OPERATIONS_COUNT);
     }
 
@@ -117,83 +119,116 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     public void loadWorkload(String workload) {
 
 
-    log.info("loading script: {}" , getLoadCmd(workload));
-        newScript(MutableMap.of(), LAUNCHING)
-                .failOnNonZeroResultCode()
-                .body.append(getLoadCmd(workload))
-                .execute();
+            log.info("loading script: {}", getLoadCmd(workload));
+            newScript(ImmutableMap.of(), LAUNCHING)
+                    .failOnNonZeroResultCode()
+                    .body.append(getLoadCmd(workload))
+                    .execute();
+
     }
 
     public void runWorkload(String workload) {
 
-
-    log.info("running script: {}" , getRunCmd(workload));
-        newScript(MutableMap.of(), LAUNCHING)
-                .failOnNonZeroResultCode()
-                .body.append(getRunCmd(workload))
-                .execute();
+            log.info("running script: {}", getRunCmd(workload));
+            newScript(ImmutableMap.of(), LAUNCHING)
+                    .failOnNonZeroResultCode()
+                    .body.append(getRunCmd(workload))
+                    .execute();
 
     }
 
-    public String getLoadCmd(String workload) {
+    private String getLoadCmd(String workload){
 
+
+        String toinstall = "classpath://" + workload;
+        int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
+        if (result != 0)
+            throw new IllegalStateException(format("unable to install workload: %s",workload));
 
         String clazz = getEntity().getMainClass();
         //String args = getArgs();
         String insertStart = Integer.toString(getInsertStart());
         String insertCount = Integer.toString(getInsertCount());
         String hostnames = getHostnames();
+        String operationsCount = Integer.toString(getOperationsCount());
 
         String recordcount = Integer.toString(getRecordCount());
 
 
         String loadcmd = String.format("java -cp \"lib/*\" %s " +
-                " -db com.yahoo.ycsb.db.CassandraClient10 -load" +
-                " -P lib/%s -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
+                " -db com.yahoo.ycsb.db.CassandraClient10 -load -P lib/" +
+                workload + " -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
                 getTimeseries() +
-                " -p hosts=%s > load.dat"
-                , clazz, workload, insertStart, insertCount, recordcount, hostnames);
+                " -p operationcount=%s -p hosts=%s > load.dat"
+                , clazz, insertStart, insertCount, recordcount, operationsCount, hostnames);
 
         return loadcmd;
     }
 
-    public String getRunCmd(String workload) {
+    private String getRunCmd(String workload) {
+
+        String toinstall = "classpath://" + workload;
+        int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
+        if (result != 0)
+            throw new IllegalStateException(format("unable to install workload: %s",workload));
+
         String clazz = getEntity().getMainClass();
-        //String args = getArgs();
+
         String hostnames = getHostnames();
         String operationsCount = Integer.toString(getOperationsCount());
 
+        String recordcount = Integer.toString(getRecordCount());
+
         return String.format("java -cp \"lib/*\" %s " +
                 " -db com.yahoo.ycsb.db.CassandraClient10 -t " +
-                " -P lib/%s -s -threads 200" +
+                "-P lib/" + workload + " -p recordcount=%s -s -threads 200" +
                 " -p operationcount=%s " +
-                   getTimeseries() +
-                " -p hosts=%s > transactions-" + workload + ".dat"
-                , clazz, workload, operationsCount, hostnames);
+                getTimeseries() +
+                " -p hosts=%s > transactions.dat"
+                , clazz, recordcount, operationsCount, hostnames);
     }
 
-    public void fetchOutputs(String localpath, String workload)
-    {
-        log.info("Copying files to {}" , localpath);
-        getMachine().copyFrom(getRunDir() + "/load-" + workload + ".dat",localpath +"/load" + entity.getId() + ".dat");
-       getMachine().copyFrom(getRunDir() + "/transactions-" + workload + ".dat",localpath +"/transactions" + entity.getId() + ".dat");
+    public void fetchOutputs(String localpath, String workload) {
+        log.info("Copying files to {}", localpath);
+        getMachine().copyFrom(getRunDir() + "/load.dat", localpath + "/load-" + workload + "-" + entity.getId() + ".dat");
+        getMachine().copyFrom(getRunDir() + "/transactions.dat", localpath + "/transactions-" + workload + "-" + entity.getId() + ".dat");
 
     }
 
-    public String getTimeseries()
-    {
+    public String getTimeseries() {
         StringBuffer timeseries;
-        if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer || Boolean.TRUE.equals(entity.getConfig(YCSBEntity.TIMESERIES)))
-        {
+        if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer || Boolean.TRUE.equals(entity.getConfig(YCSBEntity.TIMESERIES))) {
             timeseries = new StringBuffer("-p measurementtype=timeseries");
             if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer)
                 timeseries.append(" -p timeseries.granularity=" + entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY).toString());
 
             return timeseries.toString();
-        }
-
-        else
+        } else
             return "";
     }
+
+    private int install(String urlToInstall, String target, int numAttempts) {
+        Exception lastError = null;
+        int retriesRemaining = numAttempts;
+        int attemptNum = 0;
+        do {
+            attemptNum++;
+            try {
+                return getMachine().installTo(resource, urlToInstall, target);
+            } catch (Exception e) {
+                Exceptions.propagateIfFatal(e);
+                lastError = e;
+                String stack = StackTraceSimplifier.toString(e);
+                if (stack.contains("net.schmizz.sshj.sftp.RemoteFile.write")) {
+                    log.warn("Failed to transfer "+urlToInstall+" to "+getMachine()+", retryable error, attempt "+attemptNum+"/"+numAttempts+": "+e);
+                    continue;
+                }
+                log.warn("Failed to transfer "+urlToInstall+" to "+getMachine()+", not a retryable error so failing: "+e);
+                throw Exceptions.propagate(e);
+            }
+        } while (--retriesRemaining > 0);
+        throw Exceptions.propagate(lastError);
+    }
+
 
 }

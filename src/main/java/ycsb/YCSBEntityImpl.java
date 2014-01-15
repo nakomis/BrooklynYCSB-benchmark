@@ -1,10 +1,7 @@
 package ycsb;
 
 
-import brooklyn.entity.basic.SoftwareProcess;
-import brooklyn.entity.effector.EffectorBody;
 import brooklyn.entity.java.VanillaJavaAppImpl;
-import brooklyn.util.config.ConfigBag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +17,7 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
         super.init();
 
         if (getConfig(YCSBEntity.TIMESERIES_GRANULARITY) != null)
-            setConfig(YCSBEntity.TIMESERIES,true);
+            setConfig(YCSBEntity.TIMESERIES, true);
     }
 
     public void loadWorkloadEffector(String workload) {
@@ -39,9 +36,9 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     }
 
     @Override
-    public void fetchOutputs(String localpath) {
-        log.info("Fetching output files from {} to {} on local machine",getId(),localpath);
-        getDriver().fetchOutputs(localpath);
+    public void fetchOutputs(String localpath, String workloadname) {
+        log.info("Fetching output files from {} to {} on local machine", getId(), localpath);
+        getDriver().fetchOutputs(localpath, workloadname);
     }
 
     @Override
@@ -80,8 +77,7 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     }
 
     @Override
-    public void connectSensors()
-    {
+    public void connectSensors() {
         connectedSensors = true;
         connectServiceUpIsRunning();
 

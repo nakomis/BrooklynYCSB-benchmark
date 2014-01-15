@@ -7,6 +7,7 @@ import brooklyn.entity.group.AbstractMembershipTrackingPolicy;
 import brooklyn.entity.group.DynamicClusterImpl;
 import brooklyn.entity.proxying.EntitySpec;
 import brooklyn.management.Task;
+import brooklyn.util.ResourceUtils;
 import brooklyn.util.collections.MutableMap;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
@@ -15,8 +16,10 @@ import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by zaid.mohsin on 16/12/2013.
@@ -25,18 +28,45 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
 
     private static final Logger log = LoggerFactory.getLogger(YCSBEntityClusterImpl.class);
     private static final Set<String> hostnamesList = Sets.newHashSet();
-    private static AtomicInteger insertStartForEntity = new AtomicInteger();
-    private static Integer numOfRecords;
-    private static Integer insertCount;
-    private static Integer operationCountPerNode;
 
     public YCSBEntityClusterImpl() {
         super();
     }
 
     @Override
-    public void loadWorkloadForAll(String workload) {
+    public void loadWorkloadForAll(String workload) throws IOException {
         log.info("Loading workload: {} to the database.", workload);
+
+        ResourceUtils resourceUtils = ResourceUtils.create(YCSBEntityCluster.class);
+        String workloadFile = resourceUtils.getResourceAsString("classpath://" + workload);
+
+        Properties props = new Properties();
+        props.load(new StringReader(workloadFile));
+
+
+        //fetch the attributes for the seleted workload
+        Integer opscount = Integer.parseInt(props.getProperty("operationcount"));
+        Integer recordCount = Integer.parseInt(props.getProperty("recordcount"));
+
+        Integer clusterSize = getConfig(YCSBEntityCluster.INITIAL_SIZE);
+
+        Integer opsPerNode = Math.round(opscount / clusterSize);
+
+        Integer insertStart = 0;
+        Integer insertCount = recordCount / clusterSize;
+
+        for (Entity member : getMembers()) {
+            if (member instanceof YCSBEntity) {
+                ((EntityInternal) member).setAttribute(YCSBEntity.OPERATIONS_COUNT, opsPerNode);
+                ((EntityInternal) member).setAttribute(YCSBEntity.RECORD_COUNT, recordCount);
+                ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_COUNT, insertCount);
+                ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_START, insertStart * insertCount);
+
+                insertStart++;
+
+            }
+        }
+
 
         try {
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
@@ -49,9 +79,31 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     }
 
     @Override
-    public void runWorkloadForAll(String workload) {
+    public void runWorkloadForAll(String workload) throws IOException {
 
         log.info("Running workload: {} on the database.", workload);
+
+        ResourceUtils resourceUtils = ResourceUtils.create(YCSBEntityCluster.class);
+        String workloadFile = resourceUtils.getResourceAsString("classpath://" + workload);
+
+        Properties props = new Properties();
+        props.load(new StringReader(workloadFile));
+
+        //fetch the attributes for the seleted workload
+        String opscount = props.getProperty("operationcount");
+        String recordCount = props.getProperty("recordcount");
+
+
+        Integer clusterSize = getConfig(YCSBEntityCluster.INITIAL_SIZE);
+
+        Integer opsPerNode = Math.round(Integer.parseInt(opscount) / clusterSize);
+
+        for (Entity member : getMembers()) {
+            if (member instanceof YCSBEntity) {
+                ((EntityInternal) member).setAttribute(YCSBEntity.OPERATIONS_COUNT, opsPerNode);
+            }
+
+        }
 
         try {
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
@@ -61,6 +113,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             log.info("Exception is caught {}", e.toString());
         }
 
+
     }
 
     @Override
@@ -69,7 +122,7 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
             String localpath = getConfig(YCSBEntityCluster.LOCAL_OUTPUT_PATH);
 
-            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.FETCH_OUTPUTS, localpath,workload);
+            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.FETCH_OUTPUTS, localpath, workload);
             if (invoke != null) invoke.get();
         } catch (Exception e) {
             log.info("Exception is caught {}", e.toString());
@@ -80,13 +133,6 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
 
         log.info("Initializing the YCSB Cluster");
         super.init();
-        numOfRecords = this.getConfig(YCSBEntityCluster.NO_OF_RECORDS);
-        Integer clusterSize = getConfig(YCSBEntityCluster.INITIAL_SIZE);
-        insertCount = numOfRecords / clusterSize;
-
-
-        log.info("populating fields of cluster size: {}", Integer.toString(clusterSize));
-        log.info("number of records: {}", numOfRecords);
 
 
         // track members
@@ -98,33 +144,6 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             @Override
             protected void onEntityAdded(Entity member) {
 
-                if (member.getAttribute(YCSBEntity.INSERT_START) == null) {
-                    log.info("Setting the insert start for entity: {}", insertStartForEntity.get());
-                    //add the total record count to all ycsb entities
-                    ((EntityInternal) member).setAttribute(YCSBEntity.RECORD_COUNT, numOfRecords);
-
-                    //add the insert count (number of recrods each node inserts)
-                    ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_COUNT, insertCount);
-
-                    //add the insert start (number of records segment each node is responsible for)
-                    ((EntityInternal) member).setAttribute(YCSBEntity.INSERT_START, insertStartForEntity.getAndIncrement() * insertCount);
-
-                    //add the number of operations each node is responsible for.
-                    if (getConfig(YCSBEntityCluster.OPERATIONS_PER_NODE) instanceof Integer) {
-                        ((EntityInternal) member).setAttribute(YCSBEntity.OPERATIONS_COUNT, getConfig(YCSBEntityCluster.OPERATIONS_PER_NODE));
-                    } else {
-                        //if OPERATIONS_PER_NODE is not set check if TOTAL_OPERATIONS_COUNT iset
-                        if (getConfig(YCSBEntityCluster.TOTAL_OPERATIONS_COUNT) instanceof Integer) {
-                            Integer totalOperationCount = getConfig(YCSBEntityCluster.TOTAL_OPERATIONS_COUNT);
-                            Integer clusterSize = getConfig(YCSBEntityCluster.INITIAL_SIZE);
-
-                            operationCountPerNode = Math.round(totalOperationCount / clusterSize);
-
-                            ((EntityInternal) member).setAttribute(YCSBEntity.OPERATIONS_COUNT, operationCountPerNode);
-                        } else
-                            log.debug("A value for the number of operations is missing in YCSBCluster with id: " + this.getId());
-                    }
-                }
 
                 if (Boolean.TRUE.equals(member.getAttribute(SERVICE_UP))) {
                     hostnamesList.add(member.getAttribute(YCSBEntity.HOSTNAME));
@@ -169,5 +188,6 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         }
         return up;
     }
+
 
 }
