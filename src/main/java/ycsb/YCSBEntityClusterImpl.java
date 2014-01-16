@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.InputStream;
 import java.util.Properties;
 import java.util.Set;
 
@@ -38,10 +38,12 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         log.info("Loading workload: {} to the database.", workload);
 
         ResourceUtils resourceUtils = ResourceUtils.create(YCSBEntityCluster.class);
-        String workloadFile = resourceUtils.getResourceAsString("classpath://" + workload);
+        InputStream workloadFile = resourceUtils.getResourceFromUrl("classpath://" + workload);
 
         Properties props = new Properties();
-        props.load(new StringReader(workloadFile));
+        props.load(workloadFile);
+
+
 
 
         //fetch the attributes for the seleted workload
@@ -52,7 +54,9 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
 
         Integer opsPerNode = Math.round(opscount / clusterSize);
 
+        //insertStart defines the index of the record count each ycsb entity is responsible for loading (e.g. 0 for first  entity 0, second 10, ... if we have 20 total records)
         Integer insertStart = 0;
+        //insertCount defines the number of records each ycsb entity is responsible for loading
         Integer insertCount = recordCount / clusterSize;
 
         for (Entity member : getMembers()) {
@@ -84,20 +88,20 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         log.info("Running workload: {} on the database.", workload);
 
         ResourceUtils resourceUtils = ResourceUtils.create(YCSBEntityCluster.class);
-        String workloadFile = resourceUtils.getResourceAsString("classpath://" + workload);
+        InputStream workloadFile = resourceUtils.getResourceFromUrl("classpath://" + workload);
 
         Properties props = new Properties();
-        props.load(new StringReader(workloadFile));
+        props.load(workloadFile);
 
         //fetch the attributes for the seleted workload
         String opscount = props.getProperty("operationcount");
-        String recordCount = props.getProperty("recordcount");
-
 
         Integer clusterSize = getConfig(YCSBEntityCluster.INITIAL_SIZE);
 
+        //the number of operations is divided by the number of ycsb client nodes
         Integer opsPerNode = Math.round(Integer.parseInt(opscount) / clusterSize);
 
+        //each ycsb client entity in the cluster gets assigned a subset of the operations to carry out
         for (Entity member : getMembers()) {
             if (member instanceof YCSBEntity) {
                 ((EntityInternal) member).setAttribute(YCSBEntity.OPERATIONS_COUNT, opsPerNode);
@@ -146,8 +150,12 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
 
 
                 if (Boolean.TRUE.equals(member.getAttribute(SERVICE_UP))) {
+                    //set the hostnames for the YCSB cluster
                     hostnamesList.add(member.getAttribute(YCSBEntity.HOSTNAME));
                     setAttribute(YCSB_CLUSTER_NODES, Lists.newArrayList(hostnamesList));
+
+                    //set the db type to be benchmarked
+                    ((EntityInternal) member).setAttribute(YCSBEntity.DB_TO_BENCHMARK, resolveDB());
                 }
             }
 
@@ -187,6 +195,40 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
             if (Boolean.TRUE.equals(member.getAttribute(SERVICE_UP))) up = true;
         }
         return up;
+    }
+
+    private String resolveDB() {
+        String dbname = getConfig(YCSBEntityCluster.DB_TO_TEST);
+
+        if (dbname.equals("basic"))
+            return "com.yahoo.ycsb.BasicDB";
+        else if (dbname.equals("cassandra-7"))
+            return "com.yahoo.ycsb.db.CassandraClient7";
+        else if (dbname.equals("cassandra-8"))
+            return "com.yahoo.ycsb.db.CassandraClient8";
+        else if (dbname.equals("cassandra-10"))
+            return "com.yahoo.ycsb.db.CassandraClient10";
+        else if (dbname.equals("gemfire"))
+            return "com.yahoo.ycsb.db.GemFireClient";
+        else if (dbname.equals("hbase"))
+            return "com.yahoo.ycsb.db.HBaseClient";
+        else if (dbname.equals("infinispan"))
+            return "com.yahoo.ycsb.db.InfinispanClient";
+        else if (dbname.equals("jdbc"))
+            return "com.yahoo.ycsb.db.JdbcDBClient";
+        else if (dbname.equals("mapkeeper"))
+            return "com.yahoo.ycsb.db.MapKeeperClient";
+        else if (dbname.equals("mongodb"))
+            return "com.yahoo.ycsb.db.MongoDbClient";
+        else if (dbname.equals("nosqldb"))
+            return "com.yahoo.ycsb.db.NoSqlDbClient";
+        else if (dbname.equals("redis"))
+            return "com.yahoo.ycsb.db.RedisClient";
+        else if (dbname.equals("voldemort"))
+            return "com.yahoo.ycsb.db.VoldemortClient";
+        else
+            return null;
+
     }
 
 

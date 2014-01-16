@@ -42,16 +42,6 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     }
 
     @Override
-    public Integer getInsertStart() {
-        return getAttribute(INSERT_START);
-    }
-
-    @Override
-    public Integer getRecordCount() {
-        return getAttribute(RECORD_COUNT);
-    }
-
-    @Override
     public String getMainClass() {
         return getConfig(MAIN_CLASS);
     }

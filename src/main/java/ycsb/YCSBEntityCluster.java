@@ -22,14 +22,12 @@ import java.util.List;
 public interface YCSBEntityCluster extends DynamicCluster {
 
 
-    ConfigKey<Integer> NO_OF_RECORDS = ConfigKeys.newIntegerConfigKey("ycsbcluster.noOfRecords");
-    AttributeSensor<List<String>> YCSB_CLUSTER_NODES = Sensors.newSensor(new TypeToken<List<String>>() {
-    },
+    AttributeSensor<List<String>> YCSB_CLUSTER_NODES = Sensors.newSensor(new TypeToken<List<String>>() {},
             "ycsbcluster.nodes", "List of hosts of all active ycsb nodes in the cluster (public hostname/IP)");
 
     ConfigKey<String> LOCAL_OUTPUT_PATH = ConfigKeys.newStringConfigKey("ycsbcluster.localOutputPath", "the path to fetch the output files to");
-    ConfigKey<Integer> TOTAL_OPERATIONS_COUNT = ConfigKeys.newIntegerConfigKey("ycsbcluster.total.operations.count", "The total number of operations to benchmark the database");
-    ConfigKey<Integer> OPERATIONS_PER_NODE = ConfigKeys.newIntegerConfigKey("ycsbcluster.operations.per.node", "The number of operations each node should be doing");
+
+    ConfigKey<String> DB_TO_TEST = ConfigKeys.newStringConfigKey("ycsbcluster.db_to_test","the name of the db to benchmark");
 
     @Override
     void setMembers(Collection<Entity> m);

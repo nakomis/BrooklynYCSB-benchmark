@@ -25,10 +25,7 @@ public interface YCSBEntity extends VanillaJavaApp {
     AttributeSensor<Integer> OPERATIONS_COUNT = Sensors.newIntegerSensor("ycsb.operationcount", "the number of operations to to run on a database");
     ConfigKey<Boolean> TIMESERIES = ConfigKeys.newBooleanConfigKey("ycsb.timeseries", "flag to specify if timeseries to be calculated in results");
     ConfigKey<Integer> TIMESERIES_GRANULARITY = ConfigKeys.newIntegerConfigKey("ycsb.timseries.granularity", "time for intervals between timeseries averages");
-
-    Integer getInsertStart();
-
-    Integer getRecordCount();
+    AttributeSensor<String> DB_TO_BENCHMARK = Sensors.newStringSensor("ycsb.db_to_benchmark", "name of the db to benchmark");
 
     @Effector(description = "Loads a new workload to the database")
     void loadWorkloadEffector(@EffectorParam(name = "workload", description = "The name of the workload file") String workload);

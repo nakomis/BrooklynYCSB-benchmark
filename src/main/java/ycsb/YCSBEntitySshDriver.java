@@ -12,9 +12,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import javax.annotation.Nullable;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -81,7 +78,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     public String getHostnames() {
         List<String> hostnameslist = entity.getConfig(YCSBEntity.HOSTNAMES);
 
-        //remove port from the hostname
+        //remove port section from the hostname
 
         return Strings.join(Lists.newArrayList(Iterables.transform(hostnameslist, new Function<String, String>() {
 
@@ -89,9 +86,11 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
             @Override
             public String apply(@Nullable String s) {
 
-
-                int portIndex = s.indexOf(":");
-                return s.substring(0, portIndex);
+                if (s.contains(":")) {
+                    int portIndex = s.indexOf(":");
+                    return s.substring(0, portIndex);
+                } else
+                    return s;
             }
         })), ",");
     }
@@ -119,31 +118,31 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     public void loadWorkload(String workload) {
 
 
-            log.info("loading script: {}", getLoadCmd(workload));
-            newScript(ImmutableMap.of(), LAUNCHING)
-                    .failOnNonZeroResultCode()
-                    .body.append(getLoadCmd(workload))
-                    .execute();
+        log.info("loading script: {}", getLoadCmd(workload));
+        newScript(ImmutableMap.of(), LAUNCHING)
+                .failOnNonZeroResultCode()
+                .body.append(getLoadCmd(workload))
+                .execute();
 
     }
 
     public void runWorkload(String workload) {
 
-            log.info("running script: {}", getRunCmd(workload));
-            newScript(ImmutableMap.of(), LAUNCHING)
-                    .failOnNonZeroResultCode()
-                    .body.append(getRunCmd(workload))
-                    .execute();
+        log.info("running script: {}", getRunCmd(workload));
+        newScript(ImmutableMap.of(), LAUNCHING)
+                .failOnNonZeroResultCode()
+                .body.append(getRunCmd(workload))
+                .execute();
 
     }
 
-    private String getLoadCmd(String workload){
+    private String getLoadCmd(String workload) {
 
 
         String toinstall = "classpath://" + workload;
         int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
         if (result != 0)
-            throw new IllegalStateException(format("unable to install workload: %s",workload));
+            throw new IllegalStateException(format("unable to install workload: %s", workload));
 
         String clazz = getEntity().getMainClass();
         //String args = getArgs();
@@ -156,7 +155,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
 
         String loadcmd = String.format("java -cp \"lib/*\" %s " +
-                " -db com.yahoo.ycsb.db.CassandraClient10 -load -P lib/" +
+                " -db " + getDB() + " -load -P lib/" +
                 workload + " -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
                 getTimeseries() +
                 " -p operationcount=%s -p hosts=%s > load.dat"
@@ -170,22 +169,25 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         String toinstall = "classpath://" + workload;
         int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
         if (result != 0)
-            throw new IllegalStateException(format("unable to install workload: %s",workload));
+            throw new IllegalStateException(format("unable to install workload: %s", workload));
 
         String clazz = getEntity().getMainClass();
 
         String hostnames = getHostnames();
         String operationsCount = Integer.toString(getOperationsCount());
 
-        String recordcount = Integer.toString(getRecordCount());
 
         return String.format("java -cp \"lib/*\" %s " +
-                " -db com.yahoo.ycsb.db.CassandraClient10 -t " +
-                "-P lib/" + workload + " -p recordcount=%s -s -threads 200" +
+                " -db " + getDB() + " -t " +
+                "-P lib/" + workload + " -s -threads 200" +
                 " -p operationcount=%s " +
                 getTimeseries() +
                 " -p hosts=%s > transactions.dat"
-                , clazz, recordcount, operationsCount, hostnames);
+                , clazz, operationsCount, hostnames);
+    }
+
+    private String getDB() {
+        return entity.getAttribute(YCSBEntity.DB_TO_BENCHMARK);
     }
 
     public void fetchOutputs(String localpath, String workload) {
@@ -220,10 +222,10 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
                 lastError = e;
                 String stack = StackTraceSimplifier.toString(e);
                 if (stack.contains("net.schmizz.sshj.sftp.RemoteFile.write")) {
-                    log.warn("Failed to transfer "+urlToInstall+" to "+getMachine()+", retryable error, attempt "+attemptNum+"/"+numAttempts+": "+e);
+                    log.warn("Failed to transfer " + urlToInstall + " to " + getMachine() + ", retryable error, attempt " + attemptNum + "/" + numAttempts + ": " + e);
                     continue;
                 }
-                log.warn("Failed to transfer "+urlToInstall+" to "+getMachine()+", not a retryable error so failing: "+e);
+                log.warn("Failed to transfer " + urlToInstall + " to " + getMachine() + ", not a retryable error so failing: " + e);
                 throw Exceptions.propagate(e);
             }
         } while (--retriesRemaining > 0);

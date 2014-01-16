@@ -111,6 +111,7 @@ public class HighAvailabilityCassandraCluster extends AbstractApplication{
         //create the YCSB Entities
         addChild(EntitySpec.create(YCSBEntityCluster.class)
                 .configure(YCSBEntityCluster.INITIAL_SIZE, 2)
+                .configure(YCSBEntityCluster.DB_TO_TEST,"cassandra-10")
                 .configure(YCSBEntityCluster.LOCAL_OUTPUT_PATH, "/Users/zaid.mohsin/Dev/ycsboutput")
                 .configure(YCSBEntityCluster.MEMBER_SPEC, EntitySpec.create(YCSBEntity.class)
                         .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
