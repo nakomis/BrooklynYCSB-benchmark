@@ -26,6 +26,9 @@ recordcount=100000
 operationcount=50000
 workload=com.yahoo.ycsb.workloads.CoreWorkload
 
+cassandra.writeconsistencylevel=QUORUM
+cassandra.readconsistencylevel=QUORUM
+
 readallfields=true
 
 readproportion=0.5

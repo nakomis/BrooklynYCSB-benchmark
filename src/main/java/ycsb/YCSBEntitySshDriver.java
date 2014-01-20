@@ -3,8 +3,6 @@ package ycsb;
 import brooklyn.entity.java.VanillaJavaAppImpl;
 import brooklyn.entity.java.VanillaJavaAppSshDriver;
 import brooklyn.location.basic.SshMachineLocation;
-import brooklyn.util.exceptions.Exceptions;
-import brooklyn.util.javalang.StackTraceSimplifier;
 import brooklyn.util.text.Strings;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
