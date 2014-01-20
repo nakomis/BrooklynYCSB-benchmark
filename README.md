@@ -1,4 +1,4 @@
-Brooklyn Y!CSB (Yahoo! Cloud System Benchmark) Entity
+Brooklyn Y!CSB (Yahoo! Cloud Serving Benchmark) Entity
 =====================================================
 
 a YCSB entity with a Cassandra Cluster example
