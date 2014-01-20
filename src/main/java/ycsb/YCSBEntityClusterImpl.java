@@ -44,8 +44,6 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
         props.load(workloadFile);
 
 
-
-
         //fetch the attributes for the seleted workload
         Integer opscount = Integer.parseInt(props.getProperty("operationcount"));
         Integer recordCount = Integer.parseInt(props.getProperty("recordcount"));
@@ -121,12 +119,12 @@ public class YCSBEntityClusterImpl extends DynamicClusterImpl implements YCSBEnt
     }
 
     @Override
-    public void fetchOutputs(String workload) {
+    public void fetchOutputs() {
         try {
             Iterable<Entity> loadableChildren = Iterables.filter(getChildren(), Predicates.instanceOf(YCSBEntity.class));
             String localpath = getConfig(YCSBEntityCluster.LOCAL_OUTPUT_PATH);
 
-            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.FETCH_OUTPUTS, localpath, workload);
+            Task<?> invoke = Entities.invokeEffectorListWithArgs(this, loadableChildren, YCSBEntity.FETCH_OUTPUTS,localpath);
             if (invoke != null) invoke.get();
         } catch (Exception e) {
             log.info("Exception is caught {}", e.toString());

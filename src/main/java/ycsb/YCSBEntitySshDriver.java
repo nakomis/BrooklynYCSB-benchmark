@@ -115,37 +115,43 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return super.getCustomJavaSystemProperties();
     }
 
-    public void loadWorkload(String workload) {
+    public void loadWorkload(String workload, int id) {
 
-
-        log.info("loading script: {}", getLoadCmd(workload));
-        newScript(ImmutableMap.of(), LAUNCHING)
-                .failOnNonZeroResultCode()
-                .body.append(getLoadCmd(workload))
-                .execute();
-
-    }
-
-    public void runWorkload(String workload) {
-
-        log.info("running script: {}", getRunCmd(workload));
-        newScript(ImmutableMap.of(), LAUNCHING)
-                .failOnNonZeroResultCode()
-                .body.append(getRunCmd(workload))
-                .execute();
-
-    }
-
-    private String getLoadCmd(String workload) {
-
-
+        //copy the workload file to the YCSBClient
         String toinstall = "classpath://" + workload;
         int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
         if (result != 0)
             throw new IllegalStateException(format("unable to install workload: %s", workload));
 
+        log.info("loading script: {}", getLoadCmd(workload, id));
+        newScript(ImmutableMap.of(), LAUNCHING)
+                .failOnNonZeroResultCode()
+                .body.append(getLoadCmd(workload, id))
+                .execute();
+
+    }
+
+    public void runWorkload(String workload, int id) {
+
+
+        //copy the workload file to the YCSBClient
+        String toinstall = "classpath://" + workload;
+        int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
+        if (result != 0)
+            throw new IllegalStateException(format("unable to install workload: %s", workload));
+
+        log.info("running script: {}", getRunCmd(workload, id));
+        newScript(ImmutableMap.of(), LAUNCHING)
+                .failOnNonZeroResultCode()
+                .body.append(getRunCmd(workload, id))
+                .execute();
+
+    }
+
+    private String getLoadCmd(String workload, int id) {
+
+
         String clazz = getEntity().getMainClass();
-        //String args = getArgs();
         String insertStart = Integer.toString(getInsertStart());
         String insertCount = Integer.toString(getInsertCount());
         String hostnames = getHostnames();
@@ -158,18 +164,15 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
                 " -db " + getDB() + " -load -P lib/" +
                 workload + " -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
                 getTimeseries() +
-                " -p operationcount=%s -p hosts=%s > load.dat"
+                " -p operationcount=%s -p hosts=%s > load-" + id + ".dat"
                 , clazz, insertStart, insertCount, recordcount, operationsCount, hostnames);
 
         return loadcmd;
     }
 
-    private String getRunCmd(String workload) {
+    private String getRunCmd(String workload, int id) {
 
-        String toinstall = "classpath://" + workload;
-        int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
-        if (result != 0)
-            throw new IllegalStateException(format("unable to install workload: %s", workload));
+
 
         String clazz = getEntity().getMainClass();
 
@@ -182,7 +185,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
                 "-P lib/" + workload + " -s -threads 200" +
                 " -p operationcount=%s " +
                 getTimeseries() +
-                " -p hosts=%s > transactions.dat"
+                " -p hosts=%s > transactions-" + id + ".dat"
                 , clazz, operationsCount, hostnames);
     }
 
@@ -190,10 +193,22 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return entity.getAttribute(YCSBEntity.DB_TO_BENCHMARK);
     }
 
-    public void fetchOutputs(String localpath, String workload) {
+    public void fetchOutputs(String localpath, List<Integer> loadIds, List<Integer> transactionIds) {
         log.info("Copying files to {}", localpath);
-        getMachine().copyFrom(getRunDir() + "/load.dat", localpath + "/load-" + workload + "-" + entity.getId() + ".dat");
-        getMachine().copyFrom(getRunDir() + "/transactions.dat", localpath + "/transactions-" + workload + "-" + entity.getId() + ".dat");
+
+        if (!loadIds.isEmpty()) {
+            for (Integer i : loadIds)
+                getMachine().copyFrom(getRunDir() + "/load-" + i + ".dat", localpath + "/load-" + i + "-" + entity.getId() + ".dat");
+
+        }
+
+
+        if (!transactionIds.isEmpty()) {
+            for (Integer i : transactionIds)
+                getMachine().copyFrom(getRunDir() + "/transactions-" + i + ".dat", localpath + "/transactions-" + i + "-" + entity.getId() + ".dat");
+
+        }
+
 
     }
 
@@ -209,28 +224,7 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
             return "";
     }
 
-    private int install(String urlToInstall, String target, int numAttempts) {
-        Exception lastError = null;
-        int retriesRemaining = numAttempts;
-        int attemptNum = 0;
-        do {
-            attemptNum++;
-            try {
-                return getMachine().installTo(resource, urlToInstall, target);
-            } catch (Exception e) {
-                Exceptions.propagateIfFatal(e);
-                lastError = e;
-                String stack = StackTraceSimplifier.toString(e);
-                if (stack.contains("net.schmizz.sshj.sftp.RemoteFile.write")) {
-                    log.warn("Failed to transfer " + urlToInstall + " to " + getMachine() + ", retryable error, attempt " + attemptNum + "/" + numAttempts + ": " + e);
-                    continue;
-                }
-                log.warn("Failed to transfer " + urlToInstall + " to " + getMachine() + ", not a retryable error so failing: " + e);
-                throw Exceptions.propagate(e);
-            }
-        } while (--retriesRemaining > 0);
-        throw Exceptions.propagate(lastError);
-    }
+
 
 
 }

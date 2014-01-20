@@ -2,6 +2,8 @@ package ycsb;
 
 
 import brooklyn.entity.java.VanillaJavaAppImpl;
+import brooklyn.util.text.Identifiers;
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,10 +13,13 @@ import java.util.List;
 public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
 
     private static final Logger log = LoggerFactory.getLogger(YCSBEntityImpl.class);
+    private final List<Integer> outputLoadIds = Lists.newArrayList();
+    private final List<Integer> outputTransactionIds = Lists.newArrayList();
 
     @Override
     public void init() {
         super.init();
+
 
         if (getConfig(YCSBEntity.TIMESERIES_GRANULARITY) != null)
             setConfig(YCSBEntity.TIMESERIES, true);
@@ -22,23 +27,30 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
 
     public void loadWorkloadEffector(String workload) {
 
+        int id = Identifiers.randomInt();
+
         log.info("Loading wokload {} on YCSB Entity with id: {}", workload, getId());
         YCSBEntityDriver driver = getDriver();
-        driver.loadWorkload(workload);
+
+        //add the load file id to the outputIds List
+        outputLoadIds.add(id);
+        driver.loadWorkload(workload, id);
 
     }
 
     public void runWorkloadEffector(String workload) {
+        int id = Identifiers.randomInt();
 
         log.info("Running wokload {} on YCSB Entity with id: {}", workload, getId());
         YCSBEntityDriver driver = getDriver();
-        driver.runWorkload(workload);
+        outputTransactionIds.add(id);
+        driver.runWorkload(workload, id);
     }
 
     @Override
-    public void fetchOutputs(String localpath, String workloadname) {
+    public void fetchOutputs(String localpath) {
         log.info("Fetching output files from {} to {} on local machine", getId(), localpath);
-        getDriver().fetchOutputs(localpath, workloadname);
+        getDriver().fetchOutputs(localpath, outputLoadIds, outputTransactionIds);
     }
 
     @Override
