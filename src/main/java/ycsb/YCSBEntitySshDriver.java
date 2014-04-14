@@ -2,15 +2,14 @@ package ycsb;
 
 import static java.lang.String.format;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.annotation.Nullable;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -24,6 +23,7 @@ import brooklyn.util.text.Strings;
 
 public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSBEntityDriver {
 
+    AtomicBoolean currentRunningStatus = new AtomicBoolean();
 
     public YCSBEntitySshDriver(VanillaJavaAppImpl entity, SshMachineLocation machine) {
         super(entity, machine);
@@ -78,23 +78,29 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     }
 
     public String getHostnames() {
-        List<String> hostnameslist = entity.getConfig(YCSBEntity.HOSTNAMES);
+        Optional<List<String>> myHostnames = Optional.fromNullable(entity.getConfig(YCSBEntity.DB_HOSTNAMES));
 
         //remove port section from the hostname
 
-        return Strings.join(Lists.newArrayList(Iterables.transform(hostnameslist, new Function<String, String>() {
+        if (myHostnames.isPresent()) {
 
-            @Nullable
-            @Override
-            public String apply(@Nullable String s) {
+            List<String> dbHostnamesList = myHostnames.get();
+            return Strings.join(Lists.newArrayList(Iterables.transform(dbHostnamesList, new Function<String, String>() {
 
-                if (s.contains(":")) {
-                    int portIndex = s.indexOf(":");
-                    return s.substring(0, portIndex);
-                } else
-                    return s;
-            }
-        })), ",");
+                @Nullable
+                @Override
+                public String apply(@Nullable String s) {
+
+                    if (s.contains(":")) {
+                        int portIndex = s.indexOf(":");
+                        return s.substring(0, portIndex);
+                    } else
+                        return s;
+                }
+            })), ",");
+        } else {
+            return "";
+        }
     }
 
     @Override
@@ -119,35 +125,30 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
     public void runWorkload(String workload) {
 
-        //copy the workload file to the YCSBClient
-        String localWorloadFile = "classpath://" + workload;
+        if (!currentRunningStatus.getAndSet(true)) {
 
-        try {
-            InputStream workloadStream = new FileInputStream(localWorloadFile);
-            String workloadPath = Os.mergePaths(getRunDir(), "lib", workload);
+            //copy the workload file to the YCSBClient
+            String localWorkloadFile = "classpath://" + workload;
+            String remoteWorkloadFile = Os.mergePaths(getRunDir(), "lib", workload);
+            copyResource(localWorkloadFile, remoteWorkloadFile);
 
-            DynamicTasks.queueIfPossible(SshEffectorTasks.put(workloadPath)
-                    .contents(workloadStream)
-                    .summary("copying the workload file across to the client machine")
-                    .machine(getMachine())
-                    .newTask());
+            log.info("loading script with workload: {}", workload);
+            newScript("Loading the workload")
+                    .failOnNonZeroResultCode()
+                    .body.append(getLoadCmd(workload))
+                    .execute();
 
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+
+            log.info("running the transactions on workload: {}", workload);
+            if (newScript("Running the workload")
+                    .failOnNonZeroResultCode()
+                    .body.append(getRunCmd(workload))
+                    .execute() == 0) {
+                currentRunningStatus.set(false);
+            }
+        } else {
+            log.warn("Currently running workload: {}", workload);
         }
-
-        log.info("loading script with workload: {}", workload);
-        newScript("Loading the workload")
-                .failOnNonZeroResultCode()
-                .body.append(getLoadCmd(workload))
-                .execute();
-
-
-        log.info("running the transactions on workload: {}", workload);
-        newScript("Running the workload")
-                .failOnNonZeroResultCode()
-                .body.append(getRunCmd(workload))
-                .execute();
 
     }
 

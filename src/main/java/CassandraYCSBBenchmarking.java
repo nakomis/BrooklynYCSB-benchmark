@@ -32,12 +32,12 @@ import ycsb.YCSBEntity;
 @Catalog(name = "Cassandra Benchmarking with YCSB Entity", description = "Deploys A Cassandra Cluster with a YCSB Client to benchmark the cluster")
 public class CassandraYCSBBenchmarking extends AbstractApplication {
 
-    public static final AttributeSensor<Boolean> scriptExecuted = Sensors.newBooleanSensor("scriptExecuted");
+    public static final AttributeSensor<Boolean> initScriptExecuted = Sensors.newBooleanSensor("scriptExecuted");
     public static final String DEFAULT_LOCATION_SPEC = "aws-ec2:us-east-1";
     public static final ConfigKey<Integer> NUM_AVAILABILITY_ZONES = ConfigKeys.newConfigKey(
             "cassandra.cluster.numAvailabilityZones", "Number of availability zones to spread the cluster across", 1);
     public static final ConfigKey<Integer> CASSANDRA_CLUSTER_SIZE = ConfigKeys.newConfigKey(
-            "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 3);
+            "cassandra.cluster.initialSize", "Initial size of the Cassandra cluster", 2);
     private static final Logger log = LoggerFactory.getLogger(CassandraYCSBBenchmarking.class);
     private static final AtomicBoolean scriptBoolean = new AtomicBoolean();
     private CassandraDatacenter cassandraCluster;
@@ -87,7 +87,7 @@ public class CassandraYCSBBenchmarking extends AbstractApplication {
                                 "\nuse usertable;" +
                                 "\ncreate column family data;");
 
-                        setAttribute(scriptExecuted, true);
+                        setAttribute(initScriptExecuted, true);
                     }
             }
         });
@@ -97,7 +97,7 @@ public class CassandraYCSBBenchmarking extends AbstractApplication {
                 .configure(YCSBEntity.MAIN_CLASS, "com.yahoo.ycsb.Client")
                 .configure(YCSBEntity.CLASSPATH, ImmutableList.of("classpath://cassandra-binding-0.1.4.jar"
                         , "classpath://core-0.1.4.jar", "classpath://slf4j-simple-1.7.5.jar"))
-                .configure(YCSBEntity.HOSTNAMES, DependentConfiguration.attributeWhenReady(cassandraCluster, CassandraDatacenter.CASSANDRA_CLUSTER_NODES)));
+                .configure(YCSBEntity.DB_HOSTNAMES, DependentConfiguration.attributeWhenReady(cassandraCluster, CassandraDatacenter.CASSANDRA_CLUSTER_NODES)));
     }
 
 }

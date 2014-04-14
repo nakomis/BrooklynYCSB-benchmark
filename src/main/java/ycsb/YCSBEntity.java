@@ -1,5 +1,9 @@
 package ycsb;
 
+import java.util.List;
+
+import com.google.common.reflect.TypeToken;
+
 import brooklyn.config.ConfigKey;
 import brooklyn.entity.annotation.Effector;
 import brooklyn.entity.annotation.EffectorParam;
@@ -8,16 +12,13 @@ import brooklyn.entity.basic.MethodEffector;
 import brooklyn.entity.java.VanillaJavaApp;
 import brooklyn.entity.proxying.ImplementedBy;
 import brooklyn.event.AttributeSensor;
-import brooklyn.event.basic.BasicConfigKey;
 import brooklyn.event.basic.Sensors;
-import com.google.common.collect.Lists;
-
-import java.util.List;
 
 @ImplementedBy(YCSBEntityImpl.class)
 public interface YCSBEntity extends VanillaJavaApp {
 
-    ConfigKey<List> HOSTNAMES = new BasicConfigKey<List>(List.class, "ycsb.hostnames", "list of all hostnames to benchmark", Lists.newArrayList());
+    ConfigKey<List<String>> DB_HOSTNAMES = ConfigKeys.newConfigKey(new TypeToken<List<String>>() {
+    }, "ycsb.dbHostnames", "list of all hostnames to benchmark");
     AttributeSensor<Integer> INSERT_START = Sensors.newIntegerSensor("ycsb.insertstart", "inital records number to start loading");
     AttributeSensor<Integer> INSERT_COUNT = Sensors.newIntegerSensor("ycsb.insertcount", "number of records the ycsb client is responsible for inserting");
     AttributeSensor<Integer> RECORD_COUNT = Sensors.newIntegerSensor("ycsb.recordcount", "the total number of records");

@@ -6,6 +6,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import brooklyn.entity.java.VanillaJavaAppImpl;
@@ -24,8 +25,13 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
 
 
     public void runWorkloadEffector(String workload) {
-        YCSBEntityDriver driver = getDriver();
-        driver.runWorkload(workload);
+
+        if (Optional.fromNullable(getConfig(DB_HOSTNAMES)).isPresent()) {
+            YCSBEntityDriver driver = getDriver();
+            driver.runWorkload(workload);
+        } else {
+            throw new IllegalArgumentException("DB Hostnames to benchmark are not ready");
+        }
     }
 
 
