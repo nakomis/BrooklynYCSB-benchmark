@@ -1,13 +1,14 @@
 package ycsb;
 
 
-import brooklyn.entity.java.VanillaJavaAppImpl;
-import brooklyn.util.text.Identifiers;
-import com.google.common.collect.Lists;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import com.google.common.collect.Lists;
+
+import brooklyn.entity.java.VanillaJavaAppImpl;
 
 
 public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
@@ -19,39 +20,14 @@ public class YCSBEntityImpl extends VanillaJavaAppImpl implements YCSBEntity {
     @Override
     public void init() {
         super.init();
-
-
-        if (getConfig(YCSBEntity.TIMESERIES_GRANULARITY) != null)
-            setConfig(YCSBEntity.TIMESERIES, true);
     }
 
-    public void loadWorkloadEffector(String workload) {
-
-        int id = Identifiers.randomInt();
-
-        log.info("Loading wokload {} on YCSB Entity with id: {}", workload, getId());
-        YCSBEntityDriver driver = getDriver();
-
-        //add the load file id to the outputIds List
-        outputLoadIds.add(id);
-        driver.loadWorkload(workload, id);
-
-    }
 
     public void runWorkloadEffector(String workload) {
-        int id = Identifiers.randomInt();
-
-        log.info("Running wokload {} on YCSB Entity with id: {}", workload, getId());
         YCSBEntityDriver driver = getDriver();
-        outputTransactionIds.add(id);
-        driver.runWorkload(workload, id);
+        driver.runWorkload(workload);
     }
 
-    @Override
-    public void fetchOutputs(String localpath) {
-        log.info("Fetching output files from {} to {} on local machine", getId(), localpath);
-        getDriver().fetchOutputs(localpath, outputLoadIds, outputTransactionIds);
-    }
 
     @Override
     public String getMainClass() {

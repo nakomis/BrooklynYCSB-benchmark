@@ -6,9 +6,7 @@ import java.util.List;
 
 public interface YCSBEntityDriver extends VanillaJavaAppDriver {
 
-    void loadWorkload(String commands, int id);
+    void runWorkload(String commands);
 
-    void runWorkload(String commands, int id);
-
-    void fetchOutputs(String localpath, List<Integer> loadoutputs, List<Integer> transactionoutputs);
+    void fetchOutputs(String workload);
 }

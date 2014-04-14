@@ -1,19 +1,26 @@
 package ycsb;
 
-import brooklyn.entity.java.VanillaJavaAppImpl;
-import brooklyn.entity.java.VanillaJavaAppSshDriver;
-import brooklyn.location.basic.SshMachineLocation;
-import brooklyn.util.text.Strings;
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import static java.lang.String.format;
 
-import javax.annotation.Nullable;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 
-import static java.lang.String.format;
+import javax.annotation.Nullable;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+
+import brooklyn.entity.java.VanillaJavaAppImpl;
+import brooklyn.entity.java.VanillaJavaAppSshDriver;
+import brooklyn.entity.software.SshEffectorTasks;
+import brooklyn.location.basic.SshMachineLocation;
+import brooklyn.util.os.Os;
+import brooklyn.util.task.DynamicTasks;
+import brooklyn.util.text.Strings;
 
 public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSBEntityDriver {
 
@@ -23,8 +30,8 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
     }
 
     @Override
-    public VanillaJavaAppImpl getEntity() {
-        return super.getEntity();
+    public YCSBEntityImpl getEntity() {
+        return (YCSBEntityImpl) entity;
     }
 
     @Override
@@ -44,12 +51,9 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
     @Override
     public void launch() {
-
-
-        newScript(LAUNCHING).
-//                failOnNonZeroResultCode().
-        body.append("pwd").
-                execute();
+        newScript(LAUNCHING)
+                .body.append("pwd")
+                .execute();
     }
 
     @Override
@@ -113,43 +117,43 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
         return super.getCustomJavaSystemProperties();
     }
 
-    public void loadWorkload(String workload, int id) {
+    public void runWorkload(String workload) {
 
         //copy the workload file to the YCSBClient
-        String toinstall = "classpath://" + workload;
-        int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
-        if (result != 0)
-            throw new IllegalStateException(format("unable to install workload: %s", workload));
+        String localWorloadFile = "classpath://" + workload;
 
-        log.info("loading script: {}", getLoadCmd(workload, id));
-        newScript(ImmutableMap.of(), LAUNCHING)
+        try {
+            InputStream workloadStream = new FileInputStream(localWorloadFile);
+            String workloadPath = Os.mergePaths(getRunDir(), "lib", workload);
+
+            DynamicTasks.queueIfPossible(SshEffectorTasks.put(workloadPath)
+                    .contents(workloadStream)
+                    .summary("copying the workload file across to the client machine")
+                    .machine(getMachine())
+                    .newTask());
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        log.info("loading script with workload: {}", workload);
+        newScript("Loading the workload")
                 .failOnNonZeroResultCode()
-                .body.append(getLoadCmd(workload, id))
+                .body.append(getLoadCmd(workload))
+                .execute();
+
+
+        log.info("running the transactions on workload: {}", workload);
+        newScript("Running the workload")
+                .failOnNonZeroResultCode()
+                .body.append(getRunCmd(workload))
                 .execute();
 
     }
 
-    public void runWorkload(String workload, int id) {
+    private String getLoadCmd(String workload) {
 
-
-        //copy the workload file to the YCSBClient
-        String toinstall = "classpath://" + workload;
-        int result = install(toinstall, getRunDir() + "/" + "lib" + "/", 50);
-        if (result != 0)
-            throw new IllegalStateException(format("unable to install workload: %s", workload));
-
-        log.info("running script: {}", getRunCmd(workload, id));
-        newScript(ImmutableMap.of(), LAUNCHING)
-                .failOnNonZeroResultCode()
-                .body.append(getRunCmd(workload, id))
-                .execute();
-
-    }
-
-    private String getLoadCmd(String workload, int id) {
-
-
-        String clazz = getEntity().getMainClass();
+        String coreWorkloadClass = getEntity().getMainClass();
         String insertStart = Integer.toString(getInsertStart());
         String insertCount = Integer.toString(getInsertCount());
         String hostnames = getHostnames();
@@ -160,19 +164,16 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
         String loadcmd = String.format("java -cp \"lib/*\" %s " +
                 " -db " + getDB() + " -load -P lib/" +
-                workload + " -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 200 " +
-                getTimeseries() +
-                " -p operationcount=%s -p hosts=%s > load-" + id + ".dat"
-                , clazz, insertStart, insertCount, recordcount, operationsCount, hostnames);
+                workload + " -p insertstart=%s -p insertcount=%s -s -p recordcount=%s -threads 500 " +
+                " -p operationcount=%s -p hosts=%s | tee load-" + workload + ".dat"
+                , coreWorkloadClass, insertStart, insertCount, recordcount, operationsCount, hostnames);
 
         return loadcmd;
     }
 
-    private String getRunCmd(String workload, int id) {
+    private String getRunCmd(String workload) {
 
-
-
-        String clazz = getEntity().getMainClass();
+        String coreWorkloadClass = getEntity().getMainClass();
 
         String hostnames = getHostnames();
         String operationsCount = Integer.toString(getOperationsCount());
@@ -180,49 +181,24 @@ public class YCSBEntitySshDriver extends VanillaJavaAppSshDriver implements YCSB
 
         return String.format("java -cp \"lib/*\" %s " +
                 " -db " + getDB() + " -t " +
-                "-P lib/" + workload + " -s -threads 200" +
+                "-P lib/" + workload + " -s -threads 500" +
                 " -p operationcount=%s " +
-                getTimeseries() +
-                " -p hosts=%s > transactions-" + id + ".dat"
-                , clazz, operationsCount, hostnames);
+                " -p hosts=%s | tee transactions-" + workload + ".dat"
+                , coreWorkloadClass, operationsCount, hostnames);
     }
 
     private String getDB() {
-        return entity.getAttribute(YCSBEntity.DB_TO_BENCHMARK);
+        return entity.getConfig(YCSBEntity.DB_TO_BENCHMARK);
     }
 
-    public void fetchOutputs(String localpath, List<Integer> loadIds, List<Integer> transactionIds) {
-        log.info("Copying files to {}", localpath);
+    public void fetchOutputs(String workload) {
 
-        if (!loadIds.isEmpty()) {
-            for (Integer i : loadIds)
-                getMachine().copyFrom(getRunDir() + "/load-" + i + ".dat", localpath + "/load-" + i + "-" + entity.getId() + ".dat");
+        String localOutPutPath = entity.getConfig(YCSBEntity.LOCAL_OUTPUT_PATH);
+        log.info("Copying load and run output files to {} for workload: {}", localOutPutPath, workload);
 
-        }
-
-
-        if (!transactionIds.isEmpty()) {
-            for (Integer i : transactionIds)
-                getMachine().copyFrom(getRunDir() + "/transactions-" + i + ".dat", localpath + "/transactions-" + i + "-" + entity.getId() + ".dat");
-
-        }
-
-
+        DynamicTasks.queueIfPossible(SshEffectorTasks.fetch(format("load-%s.dat", workload)).machine(getMachine()).newTask());
+        DynamicTasks.queueIfPossible(SshEffectorTasks.fetch(format("transactions-%s.dat", workload)).machine(getMachine()).newTask());
     }
-
-    public String getTimeseries() {
-        StringBuffer timeseries;
-        if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer || Boolean.TRUE.equals(entity.getConfig(YCSBEntity.TIMESERIES))) {
-            timeseries = new StringBuffer("-p measurementtype=timeseries");
-            if (entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY) instanceof Integer)
-                timeseries.append(" -p timeseries.granularity=" + entity.getConfig(YCSBEntity.TIMESERIES_GRANULARITY).toString());
-
-            return timeseries.toString();
-        } else
-            return "";
-    }
-
-
 
 
 }
